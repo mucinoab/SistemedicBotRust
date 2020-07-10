@@ -1,0 +1,15 @@
+[package]
+name = "sbr"
+version = "0.1.0"
+authors = ["Bruno Muciño <mucinoab@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+postgres = "0.17.4"
+dotenv = "0.15.0"
+openssl = "0.10.30"
+postgres-openssl = "0.3.0"
+roman = "0.1.6"
+regex = "1.3.9"
