@@ -25,9 +25,13 @@ async fn main() -> Result<(), Error> {
     //     ).await?;
     //
 
-    pretty_env_logger::init();
+    pretty_env_logger::init_timed();
 
-    let (client, connection) = tokio_postgres::connect("host=localhost user=bruno", NoTls).await?;
+    let (client, connection) = tokio_postgres::connect(
+        &env::var("DATABASE").expect("Base de datos no encontrada o mal configurada."),
+        NoTls,
+    )
+    .await?;
 
     tokio::spawn(async move {
         connection.await.expect("Conexión fallida.");
@@ -117,8 +121,6 @@ async fn main() -> Result<(), Error> {
             if let MessageKind::Text { ref data, .. } = message.kind {
                 let now = Instant::now();
 
-                info!("{}: {}", &message.from.first_name, data);
-
                 let comando = Comando::from(data);
 
                 match comando {
@@ -154,7 +156,7 @@ async fn main() -> Result<(), Error> {
                         }
 
                         if bandera {
-                            api.send(message.text_reply(format!(
+                            api.send(message.chat.text(format!(
                                 "Las siguientes claves tienen ese nombre {}.",
                                 nombres_encontrados.trim_end_matches(", ")
                             )))
@@ -163,7 +165,7 @@ async fn main() -> Result<(), Error> {
                             nombres_encontrados.clear();
                             bandera = false;
                         } else {
-                            api.send(message.text_reply(
+                            api.send(message.chat.text(
                                 "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
                             ))
                             .await
@@ -177,7 +179,7 @@ async fn main() -> Result<(), Error> {
                         for cap in re_internos.captures_iter(data) {
                             let c = cap[0].to_uppercase();
                             if let Some(lineas) = map.get(&c) {
-                                api.send(message.text_reply(format!(
+                                api.send(message.chat.text(format!(
                                     "{} es {} {}, generación {}.",
                                     c,
                                     lineas.nombre,
@@ -205,7 +207,7 @@ async fn main() -> Result<(), Error> {
                         }
 
                         if bandera {
-                            api.send(message.text_reply(format!(
+                            api.send(message.chat.text(format!(
                                 "Las siguientes claves tienen ese nombre {}.",
                                 nombres_encontrados.trim_end_matches(", ")
                             )))
@@ -234,7 +236,12 @@ async fn main() -> Result<(), Error> {
                         api.send(message.chat.text(NO_COMANDO)).await.unwrap();
                     }
                 };
-                info!("{:#?}", Instant::now().duration_since(now));
+                info!(
+                    "{}: {} {:#?}",
+                    &message.from.first_name,
+                    data,
+                    Instant::now().duration_since(now)
+                );
             }
         }
     }
