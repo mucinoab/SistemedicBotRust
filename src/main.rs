@@ -33,6 +33,7 @@ async fn main() -> Result<(), Error> {
         connection.await.expect("Conexión fallida.");
     });
 
+    let now = Instant::now();
     let mut numero_de_filas: i64 = client
         .query_one("SELECT count(*) n from bot_claves", &[])
         .await?
@@ -104,6 +105,8 @@ async fn main() -> Result<(), Error> {
 
     let mut nombres_encontrados = String::with_capacity(300);
     let mut bandera: bool = false;
+
+    info!("{:#?}", Instant::now().duration_since(now));
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
@@ -260,8 +263,7 @@ impl From<&String> for Comando {
     fn from(item: &String) -> Self {
         lazy_static! {
             static ref RE: RegexSet =
-                RegexSet::new(&[r"\/c", r"\/in", r"\/n", r"\/a", r"\/ic", r"\/h", r"\/s",])
-                    .unwrap();
+                RegexSet::new(&[r"/c", r"/in", r"/n", r"/a", r"/ic", r"/h", r"/s",]).unwrap();
         }
 
         let matches = RE.matches(item);
