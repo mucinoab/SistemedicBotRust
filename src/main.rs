@@ -104,192 +104,202 @@ async fn main() -> Result<(), Error> {
     let mut stream = api.stream();
 
     while let Some(update) = stream.next().await {
-        let update = update.unwrap();
-        if let UpdateKind::Message(message) = update.kind {
-            if let MessageKind::Text { ref data, .. } = message.kind {
-                let now = Instant::now();
+        match update {
+            Ok(update) => {
+                if let UpdateKind::Message(message) = update.kind {
+                    if let MessageKind::Text { ref data, .. } = message.kind {
+                        let now = Instant::now();
 
-                match Comando::from(data) {
-                    Comando::ClaveAzul => {
-                        for cap in re_azules.captures_iter(data) {
-                            let c = cap[0].to_uppercase();
-                            if let Some(linea) = map.get(&c) {
-                                mensaje.push_str(&format!(
-                                    "{} es {} {}, generación {}.\n",
-                                    linea.clave,
-                                    linea.nombre,
-                                    linea.apellidos.split(' ').next().unwrap(),
-                                    linea.generacion,
-                                ));
-                                bandera = true;
-                            }
-                        }
-
-                        if bandera {
-                            api.send(message.chat.text(&mensaje)).await.unwrap();
-                            bandera = false;
-                            mensaje.clear();
-                        } else {
-                            api.send(message.chat.text(
-                                "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
-                            ))
-                            .await
-                            .unwrap();
-                        }
-                    }
-
-                    Comando::NombreAzul => {
-                        for palabra in data.split(' ') {
-                            if palabra.len() > 2 {
-                                let palabra = &deunicode(palabra).to_lowercase();
-                                for (clave, linea) in &map {
-                                    if deunicode(&linea.nombre).to_lowercase().contains(palabra) {
-                                        mensaje.push_str(&clave);
-                                        mensaje.push_str(", ");
-                                        bandera = true;
-                                    }
-                                }
-                            }
-                        }
-
-                        if bandera {
-                            api.send(message.chat.text(format!(
-                                "Las siguientes claves tienen ese nombre {}.",
-                                mensaje.trim_end_matches(", ")
-                            )))
-                            .await
-                            .unwrap();
-                            bandera = false;
-                            mensaje.clear();
-                        } else {
-                            api.send(message.chat.text(
-                                "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
-                            ))
-                            .await
-                            .unwrap();
-                        }
-                    }
-
-                    Comando::ApellidoAzul => {
-                        for palabra in data.split(' ') {
-                            if palabra.len() > 2 {
-                                let palabra = &deunicode(palabra).to_lowercase();
-                                for (clave, linea) in &map {
-                                    if deunicode(&linea.apellidos).to_lowercase().contains(palabra)
-                                    {
-                                        mensaje.push_str(&format!("{}, ", clave));
-                                        bandera = true;
-                                    }
-                                }
-                            }
-                        }
-
-                        if bandera {
-                            api.send(message.chat.text(format!(
-                                "Las siguientes claves tienen ese apellido {}.",
-                                mensaje.trim_end_matches(", ")
-                            )))
-                            .await
-                            .unwrap();
-                            bandera = false;
-                            mensaje.clear();
-                        } else {
-                            api.send(message.chat.text(
-                                "Parece que no hay nadie con ese apellido...\nIntenta de nuevo.",
-                            ))
-                            .await
-                            .unwrap();
-                        }
-                    }
-
-                    Comando::ClaveInterno => {
-                        mensaje.push_str(GEN_ACTUAL);
-
-                        for cap in re_internos.captures_iter(data) {
-                            let c = cap[0].to_uppercase();
-                            if let Some(linea) = map.get(&c) {
-                                mensaje.push_str(&format!(
-                                    "{} es {} {}.\n",
-                                    linea.clave,
-                                    linea.nombre,
-                                    linea.apellidos.split(' ').next().unwrap(),
-                                ));
-                                bandera = true;
-                            }
-                        }
-
-                        if bandera {
-                            api.send(message.chat.text(&mensaje)).await.unwrap();
-                            bandera = false;
-                            mensaje.clear();
-                        } else {
-                            api.send(message.chat.text(
-                                "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
-                            ))
-                            .await
-                            .unwrap();
-                        }
-                    }
-
-                    Comando::NombreInterno => {
-                        mensaje.push_str(GEN_ACTUAL);
-
-                        for palabra in data.split(' ') {
-                            if palabra.len() > 2 {
-                                let palabra = &deunicode(palabra).to_lowercase();
-                                for linea in map.values() {
-                                    if deunicode(&linea.nombre).to_lowercase().contains(palabra) {
+                        match Comando::from(data) {
+                            Comando::ClaveAzul => {
+                                for cap in re_azules.captures_iter(data) {
+                                    let c = cap[0].to_uppercase();
+                                    if let Some(linea) = map.get(&c) {
                                         mensaje.push_str(&format!(
-                                            "{} es {} {}.\n",
+                                            "{} es {} {}, generación {}.\n",
                                             linea.clave,
                                             linea.nombre,
-                                            linea.apellidos.split(' ').next().unwrap()
+                                            linea.apellidos.split(' ').next().unwrap(),
+                                            linea.generacion,
                                         ));
                                         bandera = true;
                                     }
                                 }
+
+                                if bandera {
+                                    api.send(message.chat.text(&mensaje)).await.unwrap();
+                                    bandera = false;
+                                    mensaje.clear();
+                                } else {
+                                    api.send(message.chat.text(
+                                    "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
+                                ))
+                                .await
+                                .unwrap();
+                                }
                             }
-                        }
 
-                        if bandera {
-                            api.send(message.chat.text(&mensaje)).await.unwrap();
-                            bandera = false;
-                            mensaje.clear();
-                        } else {
-                            api.send(message.chat.text(
-                                "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
-                            ))
-                            .await
-                            .unwrap();
-                        }
+                            Comando::NombreAzul => {
+                                for palabra in data.split(' ') {
+                                    if palabra.len() > 2 {
+                                        let palabra = &deunicode(palabra).to_lowercase();
+                                        for (clave, linea) in &map {
+                                            if deunicode(&linea.nombre)
+                                                .to_lowercase()
+                                                .contains(palabra)
+                                            {
+                                                mensaje.push_str(&clave);
+                                                mensaje.push_str(", ");
+                                                bandera = true;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if bandera {
+                                    api.send(message.chat.text(format!(
+                                        "Las siguientes claves tienen ese nombre {}.",
+                                        mensaje.trim_end_matches(", ")
+                                    )))
+                                    .await
+                                    .unwrap();
+                                    bandera = false;
+                                    mensaje.clear();
+                                } else {
+                                    api.send(message.chat.text(
+                                    "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
+                                ))
+                                .await
+                                .unwrap();
+                                }
+                            }
+
+                            Comando::ApellidoAzul => {
+                                for palabra in data.split(' ') {
+                                    if palabra.len() > 2 {
+                                        let palabra = &deunicode(palabra).to_lowercase();
+                                        for (clave, linea) in &map {
+                                            if deunicode(&linea.apellidos)
+                                                .to_lowercase()
+                                                .contains(palabra)
+                                            {
+                                                mensaje.push_str(&format!("{}, ", clave));
+                                                bandera = true;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if bandera {
+                                    api.send(message.chat.text(format!(
+                                        "Las siguientes claves tienen ese apellido {}.",
+                                        mensaje.trim_end_matches(", ")
+                                    )))
+                                    .await
+                                    .unwrap();
+                                    bandera = false;
+                                    mensaje.clear();
+                                } else {
+                                    api.send(message.chat.text(
+                                    "Parece que no hay nadie con ese apellido...\nIntenta de nuevo.",
+                                ))
+                                .await
+                                .unwrap();
+                                }
+                            }
+
+                            Comando::ClaveInterno => {
+                                mensaje.push_str(GEN_ACTUAL);
+
+                                for cap in re_internos.captures_iter(data) {
+                                    let c = cap[0].to_uppercase();
+                                    if let Some(linea) = map.get(&c) {
+                                        mensaje.push_str(&format!(
+                                            "{} es {} {}.\n",
+                                            linea.clave,
+                                            linea.nombre,
+                                            linea.apellidos.split(' ').next().unwrap(),
+                                        ));
+                                        bandera = true;
+                                    }
+                                }
+
+                                if bandera {
+                                    api.send(message.chat.text(&mensaje)).await.unwrap();
+                                    bandera = false;
+                                    mensaje.clear();
+                                } else {
+                                    api.send(message.chat.text(
+                                    "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
+                                ))
+                                .await
+                                .unwrap();
+                                }
+                            }
+
+                            Comando::NombreInterno => {
+                                mensaje.push_str(GEN_ACTUAL);
+
+                                for palabra in data.split(' ') {
+                                    if palabra.len() > 2 {
+                                        let palabra = &deunicode(palabra).to_lowercase();
+                                        for linea in map.values() {
+                                            if deunicode(&linea.nombre)
+                                                .to_lowercase()
+                                                .contains(palabra)
+                                            {
+                                                mensaje.push_str(&format!(
+                                                    "{} es {} {}.\n",
+                                                    linea.clave,
+                                                    linea.nombre,
+                                                    linea.apellidos.split(' ').next().unwrap()
+                                                ));
+                                                bandera = true;
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if bandera {
+                                    api.send(message.chat.text(&mensaje)).await.unwrap();
+                                    bandera = false;
+                                    mensaje.clear();
+                                } else {
+                                    api.send(message.chat.text(
+                                    "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
+                                ))
+                                .await
+                                .unwrap();
+                                }
+                            }
+
+                            Comando::Ayuda => {
+                                api.send(message.chat.text(AYUDA)).await.unwrap();
+                            }
+
+                            Comando::Start => {
+                                api.send(message.chat.text(START)).await.unwrap();
+                            }
+
+                            Comando::None => {
+                                api.send(message.chat.text(
+                                    "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.",
+                                ))
+                                .await
+                                .unwrap();
+                            }
+                        };
+
+                        info!(
+                            "{}: {} {:#?}",
+                            &message.from.first_name,
+                            data,
+                            Instant::now().duration_since(now)
+                        );
                     }
-
-                    Comando::Ayuda => {
-                        api.send(message.chat.text(AYUDA)).await.unwrap();
-                    }
-
-                    Comando::Start => {
-                        api.send(message.chat.text(START)).await.unwrap();
-                    }
-
-                    Comando::None => {
-                        api.send(
-                            message.chat.text(
-                                "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.",
-                            ),
-                        )
-                        .await
-                        .unwrap();
-                    }
-                };
-
-                info!(
-                    "{}: {} {:#?}",
-                    &message.from.first_name,
-                    data,
-                    Instant::now().duration_since(now)
-                );
+                }
             }
+            Err(e) => eprintln!("{}", e),
         }
     }
     Ok(())
