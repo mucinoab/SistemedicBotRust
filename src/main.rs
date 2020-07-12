@@ -209,7 +209,7 @@ async fn main() -> Result<(), Error> {
                             let c = cap[0].to_uppercase();
                             if let Some(linea) = map.get(&c) {
                                 mensaje.push_str(&format!(
-                                    "{} es {} {}\n.",
+                                    "{} es {} {}.\n",
                                     linea.clave,
                                     linea.nombre,
                                     linea.apellidos.split(' ').next().unwrap(),
