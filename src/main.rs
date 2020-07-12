@@ -2,10 +2,8 @@ use deunicode::deunicode;
 use futures::StreamExt;
 use regex::{Regex, RegexSet};
 use std::collections::HashMap;
-use std::convert::From;
 use std::env;
 use std::time::Instant;
-use telegram_bot::Api;
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
 
@@ -16,14 +14,16 @@ extern crate lazy_static;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    pretty_env_logger::init_timed();
+    log4rs::init_file("log_config.yml", Default::default()).unwrap();
 
+    info!("Iniciando...");
     let (client, connection) = tokio_postgres::connect(
         &env::var("DATABASE").expect("Base de datos no encontrada o mal configurada."),
         NoTls,
     )
     .await?;
 
+    info!("Conectando a base de datos...");
     tokio::spawn(async move {
         connection.await.expect("Conexión fallida.");
     });
@@ -103,6 +103,7 @@ async fn main() -> Result<(), Error> {
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
+    info!("Datos procesados");
     while let Some(update) = stream.next().await {
         match update {
             Ok(update) => {
@@ -299,7 +300,7 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
-            Err(e) => eprintln!("{}", e),
+            Err(e) => error!("{}", e),
         }
     }
     Ok(())
