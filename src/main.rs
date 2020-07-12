@@ -16,15 +16,6 @@ extern crate lazy_static;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    //     let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
-    //     builder.set_verify(SslVerifyMode::NONE);
-    //     let connector = MakeTlsConnector::new(builder.build());
-    //     let (client, connection) = tokio_postgres::connect(
-    //         &env::var("DATABASE_URL").expect("Database_url no encontrada o mal configurada."),
-    //         connector,
-    //     ).await?;
-    //
-
     pretty_env_logger::init_timed();
 
     let (client, connection) = tokio_postgres::connect(
@@ -37,7 +28,6 @@ async fn main() -> Result<(), Error> {
         connection.await.expect("Conexión fallida.");
     });
 
-    let now = Instant::now();
     let mut numero_de_filas: i64 = client
         .query_one("SELECT count(*) n from bot_claves", &[])
         .await?
@@ -110,8 +100,6 @@ async fn main() -> Result<(), Error> {
     let mut nombres_encontrados = String::with_capacity(300);
     let mut bandera: bool = false;
 
-    info!("{:#?}", Instant::now().duration_since(now));
-
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
@@ -135,6 +123,12 @@ async fn main() -> Result<(), Error> {
                                     lineas.apellidos.split(' ').next().unwrap(),
                                     lineas.generacion,
                                 )))
+                                .await
+                                .unwrap();
+                            } else {
+                                api.send(message.chat.text(
+                                    "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
+                                ))
                                 .await
                                 .unwrap();
                             }
@@ -173,7 +167,38 @@ async fn main() -> Result<(), Error> {
                         }
                     }
 
-                    Comando::ApellidoAzul => {}
+                    Comando::ApellidoAzul => {
+                        for palabra in data.split(' ') {
+                            if palabra.len() > 2 {
+                                let palabra = &deunicode(palabra).to_lowercase();
+                                for (clave, linea) in &map {
+                                    if deunicode(&linea.apellidos).to_lowercase().contains(palabra)
+                                    {
+                                        nombres_encontrados.push_str(&clave);
+                                        nombres_encontrados.push_str(", ");
+                                        bandera = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if bandera {
+                            api.send(message.chat.text(format!(
+                                "Las siguientes claves tienen ese apellido {}.",
+                                nombres_encontrados.trim_end_matches(", ")
+                            )))
+                            .await
+                            .unwrap();
+                            nombres_encontrados.clear();
+                            bandera = false;
+                        } else {
+                            api.send(message.chat.text(
+                                "Parece que no hay nadie con ese apellido...\nIntenta de nuevo.",
+                            ))
+                            .await
+                            .unwrap();
+                        }
+                    }
 
                     Comando::ClaveInterno => {
                         for cap in re_internos.captures_iter(data) {
@@ -186,6 +211,12 @@ async fn main() -> Result<(), Error> {
                                     lineas.apellidos.split(' ').next().unwrap(),
                                     lineas.generacion,
                                 )))
+                                .await
+                                .unwrap();
+                            } else {
+                                api.send(message.chat.text(
+                                    "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
+                                ))
                                 .await
                                 .unwrap();
                             }
@@ -216,7 +247,7 @@ async fn main() -> Result<(), Error> {
                             nombres_encontrados.clear();
                             bandera = false;
                         } else {
-                            api.send(message.text_reply(
+                            api.send(message.chat.text(
                                 "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
                             ))
                             .await
@@ -233,9 +264,16 @@ async fn main() -> Result<(), Error> {
                     }
 
                     Comando::None => {
-                        api.send(message.chat.text(NO_COMANDO)).await.unwrap();
+                        api.send(
+                            message.chat.text(
+                                "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.",
+                            ),
+                        )
+                        .await
+                        .unwrap();
                     }
                 };
+
                 info!(
                     "{}: {} {:#?}",
                     &message.from.first_name,
@@ -323,5 +361,3 @@ static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las cl
                     \n\"/apellido Castillo\"\
                     \n\nComparte https://t.me/sistemedicbot\
                     \nCódigo Fuente https://github.com/mucinoab/SistemedicBot/";
-
-static NO_COMANDO: &str = "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.";
