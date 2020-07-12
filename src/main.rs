@@ -1,3 +1,4 @@
+use deunicode::deunicode;
 use futures::StreamExt;
 use regex::{Regex, RegexSet};
 use std::collections::HashMap;
@@ -22,6 +23,7 @@ async fn main() -> Result<(), Error> {
     //         &env::var("DATABASE_URL").expect("Database_url no encontrada o mal configurada."),
     //         connector,
     //     ).await?;
+    //
 
     pretty_env_logger::init();
 
@@ -100,6 +102,9 @@ async fn main() -> Result<(), Error> {
     let re_azules: Regex = Regex::new(r"[Aa]\d{3}\*?").unwrap();
     let re_internos: Regex = Regex::new(r"[cC]\S{3}").unwrap();
 
+    let mut nombres_encontrados = String::with_capacity(300);
+    let mut bandera: bool = false;
+
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
@@ -131,7 +136,37 @@ async fn main() -> Result<(), Error> {
                         }
                     }
 
-                    Comando::NombreAzul => {}
+                    Comando::NombreAzul => {
+                        for palabra in data.split(' ') {
+                            if palabra.len() > 2 {
+                                let palabra = &deunicode(palabra).to_lowercase();
+                                for (clave, linea) in &map {
+                                    if deunicode(&linea.nombre).to_lowercase().contains(palabra) {
+                                        nombres_encontrados.push_str(&clave);
+                                        nombres_encontrados.push_str(", ");
+                                        bandera = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if bandera {
+                            api.send(message.text_reply(format!(
+                                "Las siguientes claves tienen ese nombre {}.",
+                                nombres_encontrados.trim_end_matches(", ")
+                            )))
+                            .await
+                            .unwrap();
+                            nombres_encontrados.clear();
+                            bandera = false;
+                        } else {
+                            api.send(message.text_reply(
+                                "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
+                            ))
+                            .await
+                            .unwrap();
+                        }
+                    }
 
                     Comando::ApellidoAzul => {}
 
@@ -152,7 +187,37 @@ async fn main() -> Result<(), Error> {
                         }
                     }
 
-                    Comando::NombreInterno => {}
+                    Comando::NombreInterno => {
+                        for palabra in data.split(' ') {
+                            if palabra.len() > 2 {
+                                let palabra = &deunicode(palabra).to_lowercase();
+                                for (clave, linea) in &map {
+                                    if deunicode(&linea.nombre).to_lowercase().contains(palabra) {
+                                        nombres_encontrados.push_str(&clave);
+                                        nombres_encontrados.push_str(", ");
+                                        bandera = true;
+                                    }
+                                }
+                            }
+                        }
+
+                        if bandera {
+                            api.send(message.text_reply(format!(
+                                "Las siguientes claves tienen ese nombre {}.",
+                                nombres_encontrados.trim_end_matches(", ")
+                            )))
+                            .await
+                            .unwrap();
+                            nombres_encontrados.clear();
+                            bandera = false;
+                        } else {
+                            api.send(message.text_reply(
+                                "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
+                            ))
+                            .await
+                            .unwrap();
+                        }
+                    }
 
                     Comando::Ayuda => {
                         api.send(message.chat.text(AYUDA)).await.unwrap();
@@ -173,7 +238,6 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Debug)]
 struct Filas {
     clave: String,
     generacion: String,
@@ -181,7 +245,6 @@ struct Filas {
     apellidos: String,
 }
 
-#[derive(Debug)]
 enum Comando {
     ClaveAzul,
     NombreAzul,
