@@ -375,7 +375,8 @@ static START: &str = "Hola soy el SistemedicBot.\
                     \n\"/inombre Karol\"\
                     \n\"/nombre Luis\"\
                     \n\"/apellido Castillo\"\
-                    \n\nPara ayuda usa /help";
+                    \n\nPara ayuda usa /help\
+                    \nComparte https://t.me/sistemedicbot";
 
 static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las claves a buscar.\
                     \nPara buscar por nombre usa \"/nombre\" ó \"/n\" más los nombres a buscar.\
@@ -389,5 +390,4 @@ static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las cl
                     \n\"/in Sam\"\
                     \n\"/nombre Luis\"\
                     \n\"/apellido Castillo\"\
-                    \n\nComparte https://t.me/sistemedicbot\
-                    \nCódigo Fuente https://github.com/mucinoab/SistemedicBot/";
+                    \nCódigo Fuente https://github.com/mucinoab/SistemedicBotRust/";
