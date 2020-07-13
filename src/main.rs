@@ -327,8 +327,16 @@ enum Comando {
 impl From<&String> for Comando {
     fn from(item: &String) -> Self {
         lazy_static! {
-            static ref RE: RegexSet =
-                RegexSet::new(&[r"/c", r"/in", r"/n", r"/a", r"/ic", r"/h", r"/s",]).unwrap();
+            static ref RE: RegexSet = RegexSet::new(&[
+                r"/[cC]",
+                r"/[inIN]{2}",
+                r"/[nN]",
+                r"/[aA]",
+                r"/[icIC]{2}",
+                r"/[hH]",
+                r"/[sS]",
+            ])
+            .unwrap();
         }
 
         let matches = RE.matches(item);
