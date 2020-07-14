@@ -46,20 +46,16 @@ async fn main() -> Result<(), Error> {
             &[],
         )
         .await?
-        .into_iter()
+        .iter()
     {
-        let clave: String = row.get(0);
-        let generacion = match row.get(1) {
-            0 => String::from("N"),
-            _ => roman::to(row.get(1)).unwrap(),
-        };
-        let nombre: String = row.get(2);
-        let apellidos: String = row.get(3);
         azules.push(Filas {
-            clave,
-            generacion,
-            nombre,
-            apellidos,
+            clave: row.get(0),
+            generacion: match row.get(1) {
+                0 => String::from("N"),
+                _ => roman::to(row.get(1)).unwrap(),
+            },
+            nombre: row.get(2),
+            apellidos: row.get(3),
         });
     }
 
@@ -71,18 +67,14 @@ async fn main() -> Result<(), Error> {
         .await?
         .iter()
     {
-        let clave: String = row.get(0);
-        let generacion = match row.get(1) {
-            0 => String::from("n"),
-            _ => roman::to(row.get(1)).unwrap(),
-        };
-        let nombre: String = row.get(2);
-        let apellidos: String = row.get(3);
         internos.push(Filas {
-            clave,
-            generacion,
-            nombre,
-            apellidos,
+            clave: row.get(0),
+            generacion: match row.get(1) {
+                0 => String::from("N"),
+                _ => roman::to(row.get(1)).unwrap(),
+            },
+            nombre: row.get(2),
+            apellidos: row.get(3),
         });
     }
 
@@ -126,7 +118,7 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(&mensaje)).await.unwrap();
+                                    api.send(message.chat.text(&mensaje)).await.ok();
                                     bandera = false;
                                     mensaje.clear();
                                 } else {
@@ -161,7 +153,8 @@ async fn main() -> Result<(), Error> {
                                         mensaje.trim_end_matches(", ")
                                     )))
                                     .await
-                                    .unwrap();
+                                    .ok();
+
                                     bandera = false;
                                     mensaje.clear();
                                 } else {
@@ -195,7 +188,8 @@ async fn main() -> Result<(), Error> {
                                         mensaje.trim_end_matches(", ")
                                     )))
                                     .await
-                                    .unwrap();
+                                    .ok();
+
                                     bandera = false;
                                     mensaje.clear();
                                 } else {
@@ -224,7 +218,8 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(&mensaje)).await.unwrap();
+                                    api.send(message.chat.text(&mensaje)).await.ok();
+
                                     bandera = false;
                                     mensaje.clear();
                                 } else {
@@ -260,7 +255,8 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(&mensaje)).await.unwrap();
+                                    api.send(message.chat.text(&mensaje)).await.ok();
+
                                     bandera = false;
                                     mensaje.clear();
                                 } else {
@@ -273,11 +269,11 @@ async fn main() -> Result<(), Error> {
                             }
 
                             Comando::Ayuda => {
-                                api.send(message.chat.text(AYUDA)).await.unwrap();
+                                api.send(message.chat.text(AYUDA)).await.ok();
                             }
 
                             Comando::Start => {
-                                api.send(message.chat.text(START)).await.unwrap();
+                                api.send(message.chat.text(START)).await.ok();
                             }
 
                             Comando::None => {
@@ -285,14 +281,14 @@ async fn main() -> Result<(), Error> {
                                     "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.",
                                 ))
                                 .await
-                                .unwrap();
+                                .ok();
                             }
                         };
 
                         info!(
-                            "{}: {} {:#?}",
+                            "{}: {:#?} {:#?}",
                             &message.from.first_name,
-                            data,
+                            &data[0..90],
                             Instant::now().duration_since(now)
                         );
                     }
