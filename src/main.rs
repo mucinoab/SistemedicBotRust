@@ -1,9 +1,7 @@
 use deunicode::deunicode;
 use futures::StreamExt;
 use regex::{Regex, RegexSet};
-use std::collections::HashMap;
-use std::env;
-use std::time::Instant;
+use std::{collections::HashMap, env, time::Instant};
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
 

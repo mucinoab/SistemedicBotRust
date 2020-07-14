@@ -4,13 +4,13 @@ appenders:
   stdout:
     kind: console
     encoder:
-      pattern: "{d(%d/%m/%Y %H:%M:%S)} {h({l})} - {m}\n"
+      pattern: "{d(%d/%m/%Y %H:%M:%S%.3f)} {h({l})} - {m}\n"
 
   requests:
     kind: file
     path: "log/log.log"
     encoder:
-      pattern: "{d(%d/%m/%Y %H:%M:%S)} {h({l})} - {m}\n"
+      pattern: "{d(%d/%m/%Y %H:%M:%S%.3f)} {h({l})} - {m}\n"
 
 root:
   level: info
