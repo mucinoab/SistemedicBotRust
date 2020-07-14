@@ -170,12 +170,12 @@ async fn main() -> Result<(), Error> {
                                 for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
-                                        for (clave, linea) in &map {
+                                        for linea in map.values() {
                                             if deunicode(&linea.apellidos)
                                                 .to_lowercase()
                                                 .contains(palabra)
                                             {
-                                                mensaje.push_str(&format!("{}, ", clave));
+                                                mensaje.push_str(&format!("{}, ", linea.clave));
                                                 bandera = true;
                                             }
                                         }
