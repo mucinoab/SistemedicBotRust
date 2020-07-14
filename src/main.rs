@@ -110,7 +110,7 @@ async fn main() -> Result<(), Error> {
                                             "{} es {} {}, generación {}.\n",
                                             linea.clave,
                                             linea.nombre,
-                                            linea.apellidos.split(' ').next().unwrap(),
+                                            linea.apellidos.split_whitespace().next().unwrap(),
                                             linea.generacion,
                                         ));
                                         bandera = true;
@@ -131,7 +131,7 @@ async fn main() -> Result<(), Error> {
                             }
 
                             Comando::NombreAzul => {
-                                for palabra in data.split(' ') {
+                                for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
                                         for (clave, linea) in &map {
@@ -167,7 +167,7 @@ async fn main() -> Result<(), Error> {
                             }
 
                             Comando::ApellidoAzul => {
-                                for palabra in data.split(' ') {
+                                for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
                                         for (clave, linea) in &map {
@@ -211,7 +211,7 @@ async fn main() -> Result<(), Error> {
                                             "{} es {} {}.\n",
                                             linea.clave,
                                             linea.nombre,
-                                            linea.apellidos.split(' ').next().unwrap(),
+                                            linea.apellidos.split_whitespace().next().unwrap(),
                                         ));
                                         bandera = true;
                                     }
@@ -234,7 +234,7 @@ async fn main() -> Result<(), Error> {
                             Comando::NombreInterno => {
                                 mensaje.push_str(GEN_ACTUAL);
 
-                                for palabra in data.split(' ') {
+                                for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
                                         for linea in map.values() {
@@ -246,7 +246,11 @@ async fn main() -> Result<(), Error> {
                                                     "{} es {} {}.\n",
                                                     linea.clave,
                                                     linea.nombre,
-                                                    linea.apellidos.split(' ').next().unwrap()
+                                                    linea
+                                                        .apellidos
+                                                        .split_whitespace()
+                                                        .next()
+                                                        .unwrap()
                                                 ));
                                                 bandera = true;
                                             }
@@ -288,7 +292,7 @@ async fn main() -> Result<(), Error> {
                         info!(
                             "{}: {:#?} {:#?}",
                             &message.from.first_name,
-                            &data[0..90],
+                            &data,
                             Instant::now().duration_since(now)
                         );
                     }
