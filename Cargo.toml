@@ -14,6 +14,6 @@ futures = "0.3.5"
 tokio = { version = "0.2", features = ["full"] }
 lazy_static = "1.4.0"
 tokio-postgres = "0.5.5"
-log = "0.4.8"
+log = "0.4.11"
 deunicode = "1.1.1"
 log4rs = "0.12.0"
