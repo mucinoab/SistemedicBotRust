@@ -26,19 +26,15 @@ async fn main() -> Result<(), Error> {
         connection.await.expect("Conexión fallida.");
     });
 
-    let mut numero_de_filas: i64 = client
-        .query_one("SELECT count(*) n from bot_claves", &[])
-        .await?
-        .get("n");
+    let numero_de_filas = client
+        .query_one(
+            "SELECT (SELECT COUNT(*) FROM bot_claves), (SELECT COUNT(*) FROM bot_internos)",
+            &[],
+        )
+        .await?;
 
-    let mut azules: Vec<Filas> = Vec::with_capacity(numero_de_filas as usize);
-
-    numero_de_filas = client
-        .query_one("SELECT count(*) n from bot_internos", &[])
-        .await?
-        .get("n");
-
-    let mut internos: Vec<Filas> = Vec::with_capacity(numero_de_filas as usize);
+    let mut azules = Vec::with_capacity(numero_de_filas.get::<usize, i64>(0) as _);
+    let mut internos = Vec::with_capacity(numero_de_filas.get::<usize, i64>(1) as _);
 
     for row in client
         .query(
