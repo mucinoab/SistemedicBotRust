@@ -12,7 +12,7 @@ extern crate lazy_static;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    log4rs::init_file("log_config.yml", Default::default()).unwrap();
+    log4rs::init_file("log_config.yml", Default::default()).expect("No se pudo iniciar Log");
 
     info!("Iniciando...");
     let (client, connection) = tokio_postgres::connect(
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Error> {
             clave: row.get(0),
             generacion: match row.get(1) {
                 0 => String::from("N"),
-                _ => roman::to(row.get(1)).unwrap(),
+                _ => roman::to(row.get(1)).expect("Error al convertir generación a número romano"),
             },
             nombre: row.get(2),
             apellidos: row.get(3),
@@ -67,7 +67,7 @@ async fn main() -> Result<(), Error> {
             clave: row.get(0),
             generacion: match row.get(1) {
                 0 => String::from("N"),
-                _ => roman::to(row.get(1)).unwrap(),
+                _ => roman::to(row.get(1)).expect("Error al convertir generación a número romano"),
             },
             nombre: row.get(2),
             apellidos: row.get(3),
@@ -80,8 +80,8 @@ async fn main() -> Result<(), Error> {
         map.insert(datos.clave.to_uppercase(), datos);
     }
 
-    let re_azules: Regex = Regex::new(r"[Aa]\d{3}\*?").unwrap();
-    let re_internos: Regex = Regex::new(r"[cC]\S{3}").unwrap();
+    let re_azules: Regex = Regex::new(r"[Aa]\d{3}\*?").expect("Error al compilar Regex");
+    let re_internos: Regex = Regex::new(r"[cC]\S{3}").expect("Error al compilar Regex");
 
     let mut mensaje = String::with_capacity(400);
     let mut bandera: bool = false;
@@ -89,7 +89,7 @@ async fn main() -> Result<(), Error> {
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
-    info!("Datos procesados");
+    info!("Datos procesados, listo para recibir querys");
     while let Some(update) = stream.next().await {
         match update {
             Ok(update) => {
@@ -106,7 +106,11 @@ async fn main() -> Result<(), Error> {
                                             "{} es {} {}, generación {}.\n",
                                             linea.clave,
                                             linea.nombre,
-                                            linea.apellidos.split_whitespace().next().unwrap(),
+                                            linea
+                                                .apellidos
+                                                .split_whitespace()
+                                                .next()
+                                                .expect("No se pudo separar apellidos"),
                                             linea.generacion,
                                         ));
                                         bandera = true;
@@ -115,8 +119,6 @@ async fn main() -> Result<(), Error> {
 
                                 if bandera {
                                     api.send(message.chat.text(&mensaje)).await.ok();
-                                    bandera = false;
-                                    mensaje.clear();
                                 } else {
                                     api.send(message.chat.text(
                                     "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
@@ -150,9 +152,6 @@ async fn main() -> Result<(), Error> {
                                     )))
                                     .await
                                     .ok();
-
-                                    bandera = false;
-                                    mensaje.clear();
                                 } else {
                                     api.send(message.chat.text(
                                     "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
@@ -185,9 +184,6 @@ async fn main() -> Result<(), Error> {
                                     )))
                                     .await
                                     .ok();
-
-                                    bandera = false;
-                                    mensaje.clear();
                                 } else {
                                     api.send(message.chat.text(
                                     "Parece que no hay nadie con ese apellido...\nIntenta de nuevo.",
@@ -215,9 +211,6 @@ async fn main() -> Result<(), Error> {
 
                                 if bandera {
                                     api.send(message.chat.text(&mensaje)).await.ok();
-
-                                    bandera = false;
-                                    mensaje.clear();
                                 } else {
                                     api.send(message.chat.text(
                                     "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
@@ -256,9 +249,6 @@ async fn main() -> Result<(), Error> {
 
                                 if bandera {
                                     api.send(message.chat.text(&mensaje)).await.ok();
-
-                                    bandera = false;
-                                    mensaje.clear();
                                 } else {
                                     api.send(message.chat.text(
                                     "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
@@ -291,6 +281,9 @@ async fn main() -> Result<(), Error> {
                             &data,
                             Instant::now().duration_since(now)
                         );
+
+                        mensaje.clear();
+                        bandera = false;
                     }
                 }
             }
