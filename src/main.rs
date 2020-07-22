@@ -89,11 +89,9 @@ async fn main() -> Result<(), Error> {
     let mut mensaje = String::with_capacity(348);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
-    let mut stream = api.stream();
 
     info!("Datos procesados, listo para recibir querys");
-
-    while let Some(update) = stream.next().await {
+    while let Some(update) = UpdatesStream::new(&api).next().await {
         match update {
             Ok(update) => {
                 if let UpdateKind::Message(message) = update.kind {
