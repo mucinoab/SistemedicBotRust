@@ -26,15 +26,15 @@ async fn main() -> Result<(), Error> {
         connection.await.expect("Conexión fallida.");
     });
 
-    let numero_de_filas = client
+    let numero_de_registros = client
         .query_one(
-            "SELECT (SELECT COUNT(*) FROM bot_claves), (SELECT COUNT(*) FROM bot_internos)",
+            "SELECT ((SELECT COUNT(*) FROM bot_claves) + (SELECT COUNT(*) FROM bot_internos))",
             &[],
         )
         .await?;
 
-    let mut azules = Vec::with_capacity(numero_de_filas.get::<usize, i64>(0) as _);
-    let mut internos = Vec::with_capacity(numero_de_filas.get::<usize, i64>(1) as _);
+    let mut map: HashMap<String, Filas> =
+        HashMap::with_capacity(numero_de_registros.get::<usize, i64>(0) as usize);
 
     for row in client
         .query(
@@ -44,15 +44,19 @@ async fn main() -> Result<(), Error> {
         .await?
         .iter()
     {
-        azules.push(Filas {
-            clave: row.get(0),
-            generacion: match row.get(1) {
-                0 => String::from("N"),
-                _ => roman::to(row.get(1)).expect("Error al convertir generación a número romano"),
+        map.insert(
+            row.get(0),
+            Filas {
+                clave: row.get(0),
+                generacion: match row.get(1) {
+                    0 => String::from("N"),
+                    _ => roman::to(row.get(1))
+                        .expect("Error al convertir generación a número romano"),
+                },
+                nombre: row.get(2),
+                apellidos: row.get(3),
             },
-            nombre: row.get(2),
-            apellidos: row.get(3),
-        });
+        );
     }
 
     for row in client
@@ -63,33 +67,32 @@ async fn main() -> Result<(), Error> {
         .await?
         .iter()
     {
-        internos.push(Filas {
-            clave: row.get(0),
-            generacion: match row.get(1) {
-                0 => String::from("N"),
-                _ => roman::to(row.get(1)).expect("Error al convertir generación a número romano"),
+        map.insert(
+            row.get(0),
+            Filas {
+                clave: row.get(0),
+                generacion: match row.get(1) {
+                    0 => String::from("N"),
+                    _ => roman::to(row.get(1))
+                        .expect("Error al convertir generación a número romano"),
+                },
+                nombre: row.get(2),
+                apellidos: row.get(3),
             },
-            nombre: row.get(2),
-            apellidos: row.get(3),
-        });
-    }
-
-    let mut map: HashMap<String, &Filas> = HashMap::with_capacity(azules.len() + internos.len());
-
-    for datos in azules.iter().chain(internos.iter()) {
-        map.insert(datos.clave.to_uppercase(), datos);
+        );
     }
 
     let re_azules: Regex = Regex::new(r"[Aa]\d{3}\*?").expect("Error al compilar Regex");
     let re_internos: Regex = Regex::new(r"[cC]\S{3}").expect("Error al compilar Regex");
 
-    let mut mensaje = String::with_capacity(400);
     let mut bandera: bool = false;
+    let mut mensaje = String::with_capacity(348);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
     info!("Datos procesados, listo para recibir querys");
+
     while let Some(update) = stream.next().await {
         match update {
             Ok(update) => {
@@ -118,13 +121,11 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(&mensaje)).await.ok();
+                                    api.spawn(message.chat.text(&mensaje));
                                 } else {
-                                    api.send(message.chat.text(
+                                    api.spawn(message.chat.text(
                                     "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
-                                ))
-                                .await
-                                .unwrap();
+                                ));
                                 }
                             }
 
@@ -146,18 +147,14 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(format!(
+                                    api.spawn(message.chat.text(format!(
                                         "Las siguientes claves tienen ese nombre {}.",
                                         mensaje.trim_end_matches(", ")
-                                    )))
-                                    .await
-                                    .ok();
+                                    )));
                                 } else {
-                                    api.send(message.chat.text(
+                                    api.spawn(message.chat.text(
                                     "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
-                                ))
-                                .await
-                                .unwrap();
+                                ));
                                 }
                             }
 
@@ -178,18 +175,14 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(format!(
+                                    api.spawn(message.chat.text(format!(
                                         "Las siguientes claves tienen ese apellido {}.",
                                         mensaje.trim_end_matches(", ")
-                                    )))
-                                    .await
-                                    .ok();
+                                    )));
                                 } else {
-                                    api.send(message.chat.text(
+                                    api.spawn(message.chat.text(
                                     "Parece que no hay nadie con ese apellido...\nIntenta de nuevo.",
-                                ))
-                                .await
-                                .unwrap();
+                                ));
                                 }
                             }
 
@@ -203,20 +196,22 @@ async fn main() -> Result<(), Error> {
                                             "{} es {} {}.\n",
                                             linea.clave,
                                             linea.nombre,
-                                            linea.apellidos.split_whitespace().next().unwrap(),
+                                            linea
+                                                .apellidos
+                                                .split_whitespace()
+                                                .next()
+                                                .expect("Error al separar apellidos"),
                                         ));
                                         bandera = true;
                                     }
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(&mensaje)).await.ok();
+                                    api.spawn(message.chat.text(&mensaje));
                                 } else {
-                                    api.send(message.chat.text(
+                                    api.spawn(message.chat.text(
                                     "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
-                                ))
-                                .await
-                                .unwrap();
+                                ));
                                 }
                             }
 
@@ -239,7 +234,7 @@ async fn main() -> Result<(), Error> {
                                                         .apellidos
                                                         .split_whitespace()
                                                         .next()
-                                                        .unwrap()
+                                                        .expect("Error al separar apellidos"),
                                                 ));
                                                 bandera = true;
                                             }
@@ -248,30 +243,26 @@ async fn main() -> Result<(), Error> {
                                 }
 
                                 if bandera {
-                                    api.send(message.chat.text(&mensaje)).await.ok();
+                                    api.spawn(message.chat.text(&mensaje));
                                 } else {
-                                    api.send(message.chat.text(
+                                    api.spawn(message.chat.text(
                                     "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
-                                ))
-                                .await
-                                .unwrap();
+                                ));
                                 }
                             }
 
                             Comando::Ayuda => {
-                                api.send(message.chat.text(AYUDA)).await.ok();
+                                api.spawn(message.chat.text(AYUDA));
                             }
 
                             Comando::Start => {
-                                api.send(message.chat.text(START)).await.ok();
+                                api.spawn(message.chat.text(START));
                             }
 
                             Comando::None => {
-                                api.send(message.chat.text(
+                                api.spawn(message.chat.text(
                                     "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.",
-                                ))
-                                .await
-                                .ok();
+                                ));
                             }
                         };
 
@@ -290,6 +281,7 @@ async fn main() -> Result<(), Error> {
             Err(e) => error!("{}", e),
         }
     }
+
     Ok(())
 }
 
