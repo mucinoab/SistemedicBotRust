@@ -89,9 +89,10 @@ async fn main() -> Result<(), Error> {
     let mut mensaje = String::with_capacity(348);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
+    let mut stream = api.stream();
 
     info!("Datos procesados, listo para recibir querys");
-    while let Some(update) = UpdatesStream::new(&api).next().await {
+    while let Some(update) = stream.next().await {
         match update {
             Ok(update) => {
                 if let UpdateKind::Message(message) = update.kind {
@@ -101,8 +102,7 @@ async fn main() -> Result<(), Error> {
                         match Comando::from(data) {
                             Comando::ClaveAzul => {
                                 for cap in re_azules.captures_iter(data) {
-                                    let c = cap[0].to_uppercase();
-                                    if let Some(linea) = map.get(&c) {
+                                    if let Some(linea) = map.get(&cap[0].to_uppercase()) {
                                         mensaje.push_str(&format!(
                                             "{} es {} {}, generación {}.\n",
                                             linea.clave,
@@ -118,13 +118,7 @@ async fn main() -> Result<(), Error> {
                                     }
                                 }
 
-                                if bandera {
-                                    api.spawn(message.chat.text(&mensaje));
-                                } else {
-                                    api.spawn(message.chat.text(
-                                    "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
-                                ));
-                                }
+                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::NombreAzul => {
@@ -144,16 +138,7 @@ async fn main() -> Result<(), Error> {
                                     }
                                 }
 
-                                if bandera {
-                                    api.spawn(message.chat.text(format!(
-                                        "Las siguientes claves tienen ese nombre {}.",
-                                        mensaje.trim_end_matches(", ")
-                                    )));
-                                } else {
-                                    api.spawn(message.chat.text(
-                                    "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
-                                ));
-                                }
+                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::ApellidoAzul => {
@@ -172,16 +157,7 @@ async fn main() -> Result<(), Error> {
                                     }
                                 }
 
-                                if bandera {
-                                    api.spawn(message.chat.text(format!(
-                                        "Las siguientes claves tienen ese apellido {}.",
-                                        mensaje.trim_end_matches(", ")
-                                    )));
-                                } else {
-                                    api.spawn(message.chat.text(
-                                    "Parece que no hay nadie con ese apellido...\nIntenta de nuevo.",
-                                ));
-                                }
+                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::ClaveInterno => {
@@ -204,13 +180,7 @@ async fn main() -> Result<(), Error> {
                                     }
                                 }
 
-                                if bandera {
-                                    api.spawn(message.chat.text(&mensaje));
-                                } else {
-                                    api.spawn(message.chat.text(
-                                    "Parece que no mencionaste a nadie conocido...\nIntenta de nuevo.",
-                                ));
-                                }
+                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::NombreInterno => {
@@ -240,13 +210,7 @@ async fn main() -> Result<(), Error> {
                                     }
                                 }
 
-                                if bandera {
-                                    api.spawn(message.chat.text(&mensaje));
-                                } else {
-                                    api.spawn(message.chat.text(
-                                    "Parece que no hay nadie con ese nombre...\nIntenta de nuevo.",
-                                ));
-                                }
+                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::Ayuda => {
@@ -258,9 +222,7 @@ async fn main() -> Result<(), Error> {
                             }
 
                             Comando::None => {
-                                api.spawn(message.chat.text(
-                                    "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.",
-                                ));
+                                api.spawn(message.chat.text(NO_ENTIENDO));
                             }
                         };
 
@@ -281,6 +243,18 @@ async fn main() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn responde(ban: &bool, texto: &String, message: &telegram_bot::Message, api: &telegram_bot::Api) {
+    if *ban {
+        api.spawn(message.chat.text(texto));
+    } else {
+        api.spawn(
+            message
+                .chat
+                .text("No encontré lo que buscas...\nIntenta de nuevo."),
+        );
+    }
 }
 
 struct Filas {
@@ -368,3 +342,5 @@ static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las cl
                     \n\"/nombre Luis\"\
                     \n\"/apellido Castillo\"\
                     \nCódigo Fuente https://github.com/mucinoab/SistemedicBotRust/";
+
+static NO_ENTIENDO: &str = "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.";
