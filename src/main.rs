@@ -68,7 +68,7 @@ async fn main() -> Result<(), Error> {
         .iter()
     {
         map.insert(
-            row.get(0),
+            row.get::<usize, String>(0).to_uppercase(),
             Filas {
                 clave: row.get(0),
                 generacion: match row.get(1) {
@@ -85,8 +85,7 @@ async fn main() -> Result<(), Error> {
     let re_azules: Regex = Regex::new(r"[Aa]\d{3}\*?").expect("Error al compilar Regex");
     let re_internos: Regex = Regex::new(r"[cC]\S{3}").expect("Error al compilar Regex");
 
-    let mut bandera: bool = false;
-    let mut mensaje = String::with_capacity(348);
+    let mut texto = String::with_capacity(348);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
@@ -103,7 +102,7 @@ async fn main() -> Result<(), Error> {
                             Comando::ClaveAzul => {
                                 for cap in re_azules.captures_iter(data) {
                                     if let Some(linea) = map.get(&cap[0].to_uppercase()) {
-                                        mensaje.push_str(&format!(
+                                        texto.push_str(&format!(
                                             "{} es {} {}, generación {}.\n",
                                             linea.clave,
                                             linea.nombre,
@@ -114,11 +113,8 @@ async fn main() -> Result<(), Error> {
                                                 .expect("No se pudo separar apellidos"),
                                             linea.generacion,
                                         ));
-                                        bandera = true;
                                     }
                                 }
-
-                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::NombreAzul => {
@@ -130,15 +126,11 @@ async fn main() -> Result<(), Error> {
                                                 .to_lowercase()
                                                 .contains(palabra)
                                             {
-                                                mensaje.push_str(&clave);
-                                                mensaje.push_str(", ");
-                                                bandera = true;
+                                                texto.push_str(&format!("{}, ", clave));
                                             }
                                         }
                                     }
                                 }
-
-                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::ApellidoAzul => {
@@ -150,23 +142,18 @@ async fn main() -> Result<(), Error> {
                                                 .to_lowercase()
                                                 .contains(palabra)
                                             {
-                                                mensaje.push_str(&format!("{}, ", linea.clave));
-                                                bandera = true;
+                                                texto.push_str(&format!("{}, ", linea.clave));
                                             }
                                         }
                                     }
                                 }
-
-                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::ClaveInterno => {
-                                mensaje.push_str(GEN_ACTUAL);
-
+                                texto.push_str(GEN_ACTUAL);
                                 for cap in re_internos.captures_iter(data) {
-                                    let c = cap[0].to_uppercase();
-                                    if let Some(linea) = map.get(&c) {
-                                        mensaje.push_str(&format!(
+                                    if let Some(linea) = map.get(&cap[0].to_uppercase()) {
+                                        texto.push_str(&format!(
                                             "{} es {} {}.\n",
                                             linea.clave,
                                             linea.nombre,
@@ -176,15 +163,12 @@ async fn main() -> Result<(), Error> {
                                                 .next()
                                                 .expect("Error al separar apellidos"),
                                         ));
-                                        bandera = true;
                                     }
                                 }
-
-                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::NombreInterno => {
-                                mensaje.push_str(GEN_ACTUAL);
+                                texto.push_str(GEN_ACTUAL);
 
                                 for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
@@ -193,8 +177,9 @@ async fn main() -> Result<(), Error> {
                                             if deunicode(&linea.nombre)
                                                 .to_lowercase()
                                                 .contains(palabra)
+                                                && !linea.clave.ends_with(char::is_numeric)
                                             {
-                                                mensaje.push_str(&format!(
+                                                texto.push_str(&format!(
                                                     "{} es {} {}.\n",
                                                     linea.clave,
                                                     linea.nombre,
@@ -204,27 +189,26 @@ async fn main() -> Result<(), Error> {
                                                         .next()
                                                         .expect("Error al separar apellidos"),
                                                 ));
-                                                bandera = true;
                                             }
                                         }
                                     }
                                 }
-
-                                responde(&bandera, &mensaje, &message, &api);
                             }
 
                             Comando::Ayuda => {
-                                api.spawn(message.chat.text(AYUDA));
+                                texto.push_str(AYUDA);
                             }
 
                             Comando::Start => {
-                                api.spawn(message.chat.text(START));
+                                texto.push_str(START);
                             }
 
                             Comando::None => {
-                                api.spawn(message.chat.text(NO_ENTIENDO));
+                                texto.push_str(NO_ENTIENDO);
                             }
                         };
+
+                        responde(&texto, &message, &api);
 
                         info!(
                             "{}: {:#?} {:#?}",
@@ -233,8 +217,7 @@ async fn main() -> Result<(), Error> {
                             Instant::now().duration_since(now)
                         );
 
-                        mensaje.clear();
-                        bandera = false;
+                        texto.clear();
                     }
                 }
             }
@@ -245,15 +228,11 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn responde(ban: &bool, texto: &String, message: &telegram_bot::Message, api: &telegram_bot::Api) {
-    if *ban {
-        api.spawn(message.chat.text(texto));
+fn responde(texto: &String, message: &Message, api: &Api) {
+    if texto.is_empty() {
+        api.spawn(message.chat.text(NO_ENCONTRE));
     } else {
-        api.spawn(
-            message
-                .chat
-                .text("No encontré lo que buscas...\nIntenta de nuevo."),
-        );
+        api.spawn(message.chat.text(texto.trim_end_matches(", ")));
     }
 }
 
@@ -313,7 +292,6 @@ impl From<&String> for Comando {
 }
 
 static GEN_ACTUAL: &str = "Gen XXXIII\n\n";
-
 static START: &str = "Hola soy el SistemedicBot.\
                     \nPara buscar por clave usa \"/clave\" más las claves a buscar.\
                     \nPara buscar por nombre usa \"/nombre\" más los nombres a buscar.\
@@ -328,7 +306,6 @@ static START: &str = "Hola soy el SistemedicBot.\
                     \n\"/apellido Castillo\"\
                     \n\nPara ayuda usa /help\
                     \nComparte https://t.me/sistemedicbot";
-
 static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las claves a buscar.\
                     \nPara buscar por nombre usa \"/nombre\" ó \"/n\" más los nombres a buscar.\
                     \nPara buscar por apellido usa \"/apellido\"  ó \"/a\"más los apellidos a buscar.\
@@ -340,7 +317,7 @@ static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las cl
                     \n\"/iclave cKGr\"\
                     \n\"/in Sam\"\
                     \n\"/nombre Luis\"\
-                    \n\"/apellido Castillo\"\
+                    \n\"/apellido Castillo\"\n\
                     \nCódigo Fuente https://github.com/mucinoab/SistemedicBotRust/";
-
 static NO_ENTIENDO: &str = "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.";
+static NO_ENCONTRE: &str = "No encontré lo que buscas...\nIntenta de nuevo.";
