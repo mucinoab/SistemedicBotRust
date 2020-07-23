@@ -1,5 +1,5 @@
 [package]
-name = "sitemedic_bot"
+name = "sistemedic_bot"
 version = "0.1.0"
 authors = ["Bruno Muciño <mucinoab@gmail.com>"]
 edition = "2018"
