@@ -33,42 +33,19 @@ async fn main() -> Result<(), Error> {
         )
         .await?;
 
-    let mut map: HashMap<String, Filas> =
-        HashMap::with_capacity(numero_de_registros.get::<usize, i64>(0) as usize);
+    let mut map = HashMap::with_capacity(numero_de_registros.get::<usize, i64>(0) as usize);
 
     for row in client
         .query(
-            "SELECT clave, generacion, nombre, apellidos from bot_claves",
+            "SELECT clave, generacion, nombre, apellidos 
+            FROM (SELECT * from bot_claves UNION SELECT * from bot_internos)x;",
             &[],
         )
         .await?
         .iter()
     {
         map.insert(
-            row.get(0),
-            Filas {
-                clave: row.get(0),
-                generacion: match row.get(1) {
-                    0 => String::from("N"),
-                    _ => roman::to(row.get(1))
-                        .expect("Error al convertir generación a número romano"),
-                },
-                nombre: row.get(2),
-                apellidos: row.get(3),
-            },
-        );
-    }
-
-    for row in client
-        .query(
-            "select clave, generacion, nombre, apellidos from bot_internos",
-            &[],
-        )
-        .await?
-        .iter()
-    {
-        map.insert(
-            row.get::<usize, String>(0).to_uppercase(),
+            row.get::<usize, &str>(0).to_uppercase(),
             Filas {
                 clave: row.get(0),
                 generacion: match row.get(1) {
@@ -169,7 +146,6 @@ async fn main() -> Result<(), Error> {
 
                             Comando::NombreInterno => {
                                 texto.push_str(GEN_ACTUAL);
-
                                 for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
@@ -228,7 +204,7 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn responde(texto: &String, message: &Message, api: &Api) {
+fn responde(texto: &str, message: &Message, api: &Api) {
     if texto.is_empty() {
         api.spawn(message.chat.text(NO_ENCONTRE));
     } else {
@@ -266,11 +242,9 @@ impl From<&String> for Comando {
                 r"/[hH]",
                 r"/[sS]",
             ])
-            .unwrap();
+            .expect("Error al compilar Regex");
         }
-
         let matches = RE.matches(item);
-
         if matches.matched(0) {
             Self::ClaveAzul
         } else if matches.matched(1) {
@@ -290,34 +264,36 @@ impl From<&String> for Comando {
         }
     }
 }
-
 static GEN_ACTUAL: &str = "Gen XXXIII\n\n";
-static START: &str = "Hola soy el SistemedicBot.\
-                    \nPara buscar por clave usa \"/clave\" más las claves a buscar.\
-                    \nPara buscar por nombre usa \"/nombre\" más los nombres a buscar.\
-                    \nPara buscar por apellido usa \"/apellido\" más los apellidos a buscar.\
-                    \nPara buscar interno por clave usa \"/iclave\" más las claves.\
-                    \nPara buscar internos por nombre usa \"/inombre\" más los nombres a buscar.\
-                    \n\nEjemplo\
-                    \n\"/clave A101 A027 A007 A001 A010* A010\"\
-                    \n\"/iclave cKGr\"\
-                    \n\"/inombre Karol\"\
-                    \n\"/nombre Luis\"\
-                    \n\"/apellido Castillo\"\
-                    \n\nPara ayuda usa /help\
-                    \nComparte https://t.me/sistemedicbot";
-static AYUDA: &str = "Para buscar por clave usa \"/clave\" ó \"/c\" más las claves a buscar.\
-                    \nPara buscar por nombre usa \"/nombre\" ó \"/n\" más los nombres a buscar.\
-                    \nPara buscar por apellido usa \"/apellido\"  ó \"/a\"más los apellidos a buscar.\
-                    \nPara buscar internos por clave usa \"/iclave\" ó \"/ic\" más las claves.\
-                    \nPara buscar internos por nombre usa \"/inombre\" ó \"/in\" más los nombres a buscar.\
-                    \n\nEjemplo\
-                    \n\"/clave A101 A027 A007 A010*\"\
-                    \n\"/c a342\"\
-                    \n\"/iclave cKGr\"\
-                    \n\"/in Sam\"\
-                    \n\"/nombre Luis\"\
-                    \n\"/apellido Castillo\"\n\
-                    \nCódigo Fuente https://github.com/mucinoab/SistemedicBotRust/";
+static START: &str = r#"Hola soy el SistemedicBot.
+Para buscar...
+-Internos por nombre usa /inombre más los nombres a buscar.
+-Internos por clave usa /iclave más las claves.
+-Clave usa /clave más las claves. 
+-Nombre usa "/nombre" más los nombres.
+-Apellido usa /apellido" más los apellidos.
+
+Ejemplo
+/clave A101 A027 A007 A010* A010
+/iclave cKGr
+/inombre Karol
+/nombre Luis
+
+Para ayuda usa /help
+Comparte https://t.me/sistemedicbot"#;
+static AYUDA: &str = r#"Para buscar por clave usa /clave ó /c más las claves a buscar.
+Para buscar por nombre usa /nombre ó /n más los nombres a buscar.
+Para buscar por apellido usa /apellido ó /a más los apellidos a buscar.
+Para buscar internos por clave usa /iclave ó /ic más las claves.
+Para buscar internos por nombre usa /inombre ó /in más los nombres a buscar.
+
+Ejemplo
+/clave A101 A007 A010*
+/c a342
+/iclave cKGr
+/in Sam
+/a castillo"
+
+Código Fuente: https://github.com/mucinoab/SistemedicBotRust/"#;
 static NO_ENTIENDO: &str = "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.";
 static NO_ENCONTRE: &str = "No encontré lo que buscas...\nIntenta de nuevo.";
