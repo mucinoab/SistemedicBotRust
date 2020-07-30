@@ -22,3 +22,7 @@ log4rs = "0.13.0"
 lto = "fat"
 codegen-units = 1
 panic = "abort"
+
+[[bench]]
+name = "ffast"
+harness = false
