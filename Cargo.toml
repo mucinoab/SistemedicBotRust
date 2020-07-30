@@ -17,3 +17,8 @@ tokio-postgres = "0.5.5"
 log = "0.4.11"
 deunicode = "1.1.1"
 log4rs = "0.13.0"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
