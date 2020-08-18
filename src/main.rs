@@ -1,7 +1,12 @@
+use std::{
+    collections::HashMap,
+    env, thread,
+    time::{Duration, Instant},
+};
+
 use deunicode::deunicode;
 use futures::StreamExt;
 use regex::{Regex, RegexSet};
-use std::{collections::HashMap, env, time::Instant};
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
 
@@ -23,7 +28,7 @@ async fn main() -> Result<(), Error> {
 
     info!("Conectando a base de datos...");
     tokio::spawn(async move {
-        connection.await.expect("Conexión fallida.");
+        connection.await.expect("Conexión a base de datos fallida.");
     });
 
     let numero_de_registros = client
@@ -197,7 +202,10 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
-            Err(e) => error!("{}", e),
+            Err(e) => {
+                error!("{}", e);
+                thread::sleep(Duration::from_millis(500));
+            }
         }
     }
 
