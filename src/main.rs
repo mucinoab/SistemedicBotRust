@@ -300,7 +300,7 @@ Ejemplo
 /c a342
 /iclave cKGr
 /in Sam
-/a castillo"
+/a castillo
 
 Código Fuente: https://github.com/mucinoab/SistemedicBotRust/"#;
 static NO_ENTIENDO: &str = "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.";
