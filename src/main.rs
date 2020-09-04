@@ -1,11 +1,11 @@
 use std::{
-    collections::HashMap,
     env, thread,
     time::{Duration, Instant},
 };
 
 use deunicode::deunicode;
 use futures::StreamExt;
+use hashbrown::HashMap;
 use regex::{Regex, RegexSet};
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
