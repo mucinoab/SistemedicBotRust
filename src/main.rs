@@ -155,10 +155,10 @@ async fn main() -> Result<(), Error> {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
                                         for linea in map.values() {
-                                            if deunicode(&linea.nombre)
-                                                .to_lowercase()
-                                                .contains(palabra)
-                                                && !linea.clave.ends_with(char::is_numeric)
+                                            if !linea.clave.ends_with(char::is_numeric)
+                                                && deunicode(&linea.nombre)
+                                                    .to_lowercase()
+                                                    .contains(palabra)
                                             {
                                                 texto.push_str(&format!(
                                                     "{} es {} {}.\n",
