@@ -36,9 +36,10 @@ async fn main() -> Result<(), Error> {
             "SELECT ((SELECT COUNT(*) FROM bot_claves) + (SELECT COUNT(*) FROM bot_internos))",
             &[],
         )
-        .await?;
+        .await?
+        .get::<usize, i64>(0) as usize;
 
-    let mut map = HashMap::with_capacity(numero_de_registros.get::<usize, i64>(0) as usize);
+    let mut map = HashMap::with_capacity(numero_de_registros);
 
     for row in client
         .query(
@@ -53,12 +54,14 @@ async fn main() -> Result<(), Error> {
             row.get::<usize, &str>(0).to_uppercase(),
             Filas {
                 clave: row.get(0),
+
                 generacion: match row.get(1) {
                     0 => String::from("N"),
-                    _ => roman::to(row.get(1))
-                        .expect("Error al convertir generación a número romano"),
+                    _ => roman::to(row.get(1)).unwrap(),
                 },
+
                 nombre: row.get(2),
+
                 apellidos: row.get(3),
             },
         );
