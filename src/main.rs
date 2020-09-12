@@ -6,6 +6,7 @@ use std::{
 use deunicode::deunicode;
 use futures::StreamExt;
 use hashbrown::HashMap;
+use rayon::prelude::*;
 use regex::{Regex, RegexSet};
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
@@ -88,7 +89,7 @@ async fn main() -> Result<(), Error> {
                                 for cap in re_azules.captures_iter(data) {
                                     if let Some(linea) = map.get(&cap[0].to_uppercase()) {
                                         texto.push_str(&format!(
-                                            "{} es {} {}, generación {}.\n",
+                                            "{}  {} {}, gen {}\n",
                                             linea.clave,
                                             linea.nombre,
                                             linea
@@ -106,14 +107,24 @@ async fn main() -> Result<(), Error> {
                                 for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
-                                        for (clave, linea) in &map {
-                                            if deunicode(&linea.nombre)
-                                                .to_lowercase()
-                                                .contains(palabra)
-                                            {
-                                                texto.push_str(&format!("{}, ", clave));
-                                            }
-                                        }
+
+                                        texto.push_str(
+                                            &map.par_iter()
+                                                .filter_map(|(_, datos)| {
+                                                    if deunicode(&datos.nombre)
+                                                        .to_lowercase()
+                                                        .contains(palabra)
+                                                    {
+                                                        Some(format!(
+                                                            "{}  {}\n",
+                                                            datos.clave, datos.apellidos
+                                                        ))
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect::<String>(),
+                                        );
                                     }
                                 }
                             }
@@ -122,14 +133,24 @@ async fn main() -> Result<(), Error> {
                                 for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
-                                        for linea in map.values() {
-                                            if deunicode(&linea.apellidos)
-                                                .to_lowercase()
-                                                .contains(palabra)
-                                            {
-                                                texto.push_str(&format!("{}, ", linea.clave));
-                                            }
-                                        }
+
+                                        texto.push_str(
+                                            &map.par_iter()
+                                                .filter_map(|(_, datos)| {
+                                                    if deunicode(&datos.apellidos)
+                                                        .to_lowercase()
+                                                        .contains(palabra)
+                                                    {
+                                                        Some(format!(
+                                                            "{}  {}\n",
+                                                            datos.clave, datos.nombre
+                                                        ))
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect::<String>(),
+                                        );
                                     }
                                 }
                             }
@@ -139,7 +160,7 @@ async fn main() -> Result<(), Error> {
                                 for cap in re_internos.captures_iter(data) {
                                     if let Some(linea) = map.get(&cap[0].to_uppercase()) {
                                         texto.push_str(&format!(
-                                            "{} es {} {}.\n",
+                                            "{}  {} {}\n",
                                             linea.clave,
                                             linea.nombre,
                                             linea
@@ -154,27 +175,37 @@ async fn main() -> Result<(), Error> {
 
                             Comando::NombreInterno => {
                                 texto.push_str(GEN_ACTUAL);
+
                                 for palabra in data.split_whitespace() {
                                     if palabra.len() > 2 {
                                         let palabra = &deunicode(palabra).to_lowercase();
-                                        for linea in map.values() {
-                                            if !linea.clave.ends_with(char::is_numeric)
-                                                && deunicode(&linea.nombre)
-                                                    .to_lowercase()
-                                                    .contains(palabra)
-                                            {
-                                                texto.push_str(&format!(
-                                                    "{} es {} {}.\n",
-                                                    linea.clave,
-                                                    linea.nombre,
-                                                    linea
-                                                        .apellidos
-                                                        .split_whitespace()
-                                                        .next()
-                                                        .expect("Error al separar apellidos"),
-                                                ));
-                                            }
-                                        }
+
+                                        texto.push_str(
+                                            &map.par_iter()
+                                                .filter_map(|(_, datos)| {
+                                                    if !datos.clave.ends_with(char::is_numeric)
+                                                        && deunicode(&datos.nombre)
+                                                            .to_lowercase()
+                                                            .contains(palabra)
+                                                    {
+                                                        Some(format!(
+                                                            "{}  {} {}\n",
+                                                            datos.clave,
+                                                            datos.nombre,
+                                                            datos
+                                                                .apellidos
+                                                                .split_whitespace()
+                                                                .next()
+                                                                .expect(
+                                                                    "Error al separar apellidos"
+                                                                ),
+                                                        ))
+                                                    } else {
+                                                        None
+                                                    }
+                                                })
+                                                .collect::<String>(),
+                                        );
                                     }
                                 }
                             }
@@ -219,7 +250,7 @@ fn responde(texto: &str, message: &Message, api: &Api) {
     if texto.is_empty() {
         api.spawn(message.chat.text(NO_ENCONTRE));
     } else {
-        api.spawn(message.chat.text(texto.trim_end_matches(", ")));
+        api.spawn(message.chat.text(texto));
     }
 }
 
@@ -275,14 +306,16 @@ impl From<&String> for Comando {
         }
     }
 }
+
 static GEN_ACTUAL: &str = "Gen XXXIII\n\n";
+
 static START: &str = r#"Hola soy el SistemedicBot.
 Para buscar...
 -Internos por nombre usa /inombre más los nombres a buscar.
 -Internos por clave usa /iclave más las claves.
 -Clave usa /clave más las claves. 
--Nombre usa "/nombre" más los nombres.
--Apellido usa /apellido" más los apellidos.
+-Nombre usa /nombre más los nombres.
+-Apellido usa /apellido más los apellidos.
 
 Ejemplo
 /clave A101 A027 A007 A010* A010
@@ -291,7 +324,8 @@ Ejemplo
 /nombre Luis
 
 Para ayuda usa /help
-Comparte https://t.me/sistemedicbot"#;
+Comparte con https://t.me/sistemedicbot"#;
+
 static AYUDA: &str = r#"Para buscar por clave usa /clave ó /c más las claves a buscar.
 Para buscar por nombre usa /nombre ó /n más los nombres a buscar.
 Para buscar por apellido usa /apellido ó /a más los apellidos a buscar.
@@ -306,5 +340,7 @@ Ejemplo
 /a castillo
 
 Código Fuente: https://github.com/mucinoab/SistemedicBotRust/"#;
+
 static NO_ENTIENDO: &str = "No te entendí...\nIntenta de nuevo o usa \"/h\" para ayuda.";
+
 static NO_ENCONTRE: &str = "No encontré lo que buscas...\nIntenta de nuevo.";
