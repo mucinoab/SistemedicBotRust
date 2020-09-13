@@ -33,39 +33,30 @@ async fn main() -> Result<(), Error> {
         connection.await.expect("Conexión a base de datos fallida.");
     });
 
-    let numero_de_registros = client
-        .query_one(
-            "SELECT ((SELECT COUNT(*) FROM bot_claves) + (SELECT COUNT(*) FROM bot_internos))",
-            &[],
-        )
-        .await?
-        .get::<usize, i64>(0) as usize;
-
-    let mut map = HashMap::with_capacity(numero_de_registros);
-
-    for row in client
+    let map: HashMap<String, Filas> = client
         .query(
             "SELECT clave, generacion, nombre, apellidos 
             FROM (SELECT * from bot_claves UNION SELECT * from bot_internos)x;",
             &[],
         )
         .await?
-        .iter()
-    {
-        map.insert(
-            row.get::<usize, &str>(0).to_uppercase(),
-            Filas {
-                generacion: match row.get(1) {
-                    0 => String::from("N"),
-                    _ => roman::to(row.get(1)).unwrap(),
+        .par_iter()
+        .map(|row| {
+            (
+                row.get::<usize, &str>(0).to_uppercase(),
+                Filas {
+                    generacion: match row.get(1) {
+                        0 => String::from("N"),
+                        _ => roman::to(row.get(1)).unwrap(),
+                    },
+
+                    nombre: row.get(2),
+
+                    apellidos: row.get(3),
                 },
-
-                nombre: row.get(2),
-
-                apellidos: row.get(3),
-            },
-        );
-    }
+            )
+        })
+        .collect();
 
     let re_azules: Regex = Regex::new(r"[Aa]\d{3}\*?").expect("Error al compilar Regex");
     let re_internos: Regex = Regex::new(r"[cC]\S{3}").expect("Error al compilar Regex");
@@ -278,7 +269,7 @@ async fn main() -> Result<(), Error> {
 
             Err(e) => {
                 error!("{}", e);
-                thread::sleep(Duration::from_millis(500));
+                thread::sleep(Duration::from_millis(1000));
             }
         }
     }
