@@ -54,8 +54,6 @@ async fn main() -> Result<(), Error> {
         map.insert(
             row.get::<usize, &str>(0).to_uppercase(),
             Filas {
-                clave: row.get(0),
-
                 generacion: match row.get(1) {
                     0 => String::from("N"),
                     _ => roman::to(row.get(1)).unwrap(),
@@ -87,17 +85,19 @@ async fn main() -> Result<(), Error> {
                         match Comando::from(data) {
                             Comando::ClaveAzul => {
                                 for cap in re_azules.captures_iter(data) {
-                                    if let Some(linea) = map.get(&cap[0].to_uppercase()) {
+                                    if let Some((clave, datos)) =
+                                        map.get_key_value(&cap[0].to_uppercase())
+                                    {
                                         texto.push_str(&format!(
                                             "{}  {} {}, gen {}\n",
-                                            linea.clave,
-                                            linea.nombre,
-                                            linea
+                                            clave,
+                                            datos.nombre,
+                                            datos
                                                 .apellidos
                                                 .split_whitespace()
                                                 .next()
                                                 .expect("No se pudo separar apellidos"),
-                                            linea.generacion,
+                                            datos.generacion,
                                         ));
                                     }
                                 }
@@ -110,14 +110,14 @@ async fn main() -> Result<(), Error> {
 
                                         texto.push_str(
                                             &map.par_iter()
-                                                .filter_map(|(_, datos)| {
+                                                .filter_map(|(clave, datos)| {
                                                     if deunicode(&datos.nombre)
                                                         .to_lowercase()
                                                         .contains(palabra)
                                                     {
                                                         Some(format!(
                                                             "{}  {}\n",
-                                                            datos.clave, datos.apellidos
+                                                            clave, datos.apellidos
                                                         ))
                                                     } else {
                                                         None
@@ -136,14 +136,14 @@ async fn main() -> Result<(), Error> {
 
                                         texto.push_str(
                                             &map.par_iter()
-                                                .filter_map(|(_, datos)| {
+                                                .filter_map(|(clave, datos)| {
                                                     if deunicode(&datos.apellidos)
                                                         .to_lowercase()
                                                         .contains(palabra)
                                                     {
                                                         Some(format!(
                                                             "{}  {}\n",
-                                                            datos.clave, datos.nombre
+                                                            clave, datos.nombre
                                                         ))
                                                     } else {
                                                         None
@@ -158,12 +158,14 @@ async fn main() -> Result<(), Error> {
                             Comando::ClaveInterno => {
                                 texto.push_str(GEN_ACTUAL);
                                 for cap in re_internos.captures_iter(data) {
-                                    if let Some(linea) = map.get(&cap[0].to_uppercase()) {
+                                    if let Some((clave, datos)) =
+                                        map.get_key_value(&cap[0].to_uppercase())
+                                    {
                                         texto.push_str(&format!(
                                             "{}  {} {}\n",
-                                            linea.clave,
-                                            linea.nombre,
-                                            linea
+                                            clave,
+                                            datos.nombre,
+                                            datos
                                                 .apellidos
                                                 .split_whitespace()
                                                 .next()
@@ -182,15 +184,15 @@ async fn main() -> Result<(), Error> {
 
                                         texto.push_str(
                                             &map.par_iter()
-                                                .filter_map(|(_, datos)| {
-                                                    if !datos.clave.ends_with(char::is_numeric)
+                                                .filter_map(|(clave, datos)| {
+                                                    if !clave.ends_with(char::is_numeric)
                                                         && deunicode(&datos.nombre)
                                                             .to_lowercase()
                                                             .contains(palabra)
                                                     {
                                                         Some(format!(
                                                             "{}  {} {}\n",
-                                                            datos.clave,
+                                                            clave,
                                                             datos.nombre,
                                                             datos
                                                                 .apellidos
@@ -206,6 +208,42 @@ async fn main() -> Result<(), Error> {
                                                 })
                                                 .collect::<String>(),
                                         );
+                                    }
+                                }
+                            }
+
+                            Comando::Generacion => {
+                                for palabra in data.split_whitespace() {
+                                    if let Ok(gen) = palabra.parse::<i32>() {
+                                        if let Some(gen_obj) = roman::to(gen) {
+                                            texto.push_str(&format!("\nGen {}\n\n", gen_obj));
+                                            if gen > 15 {
+                                                texto.push_str(
+                                                    &map.par_iter()
+                                                        .filter_map(|(clave, datos)| {
+                                                            if datos.generacion == gen_obj {
+                                                                Some(format!(
+                                                                    "{}  {} {}\n",
+                                                                    clave,
+                                                                    datos.nombre,
+                                                                    datos
+                                                                        .apellidos
+                                                                        .split_whitespace()
+                                                                        .next()
+                                                                        .unwrap_or("")
+                                                                ))
+                                                            } else {
+                                                                None
+                                                            }
+                                                        })
+                                                        .collect::<String>(),
+                                                );
+                                            } else {
+                                                texto.push_str(
+                                                    "No tengo datos sobre esa generación...\n\n",
+                                                );
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -236,6 +274,7 @@ async fn main() -> Result<(), Error> {
                     }
                 }
             }
+
             Err(e) => {
                 error!("{}", e);
                 thread::sleep(Duration::from_millis(500));
@@ -255,7 +294,6 @@ fn responde(texto: &str, message: &Message, api: &Api) {
 }
 
 struct Filas {
-    clave: String,
     generacion: String,
     nombre: String,
     apellidos: String,
@@ -267,6 +305,7 @@ enum Comando {
     ApellidoAzul,
     ClaveInterno,
     NombreInterno,
+    Generacion,
     Ayuda,
     Start,
     None,
@@ -281,12 +320,15 @@ impl From<&String> for Comando {
                 r"/[nN]",
                 r"/[aA]",
                 r"/[icIC]{2}",
+                r"/[gG]",
                 r"/[hH]",
                 r"/[sS]",
             ])
             .expect("Error al compilar Regex");
         }
+
         let matches = RE.matches(item);
+
         if matches.matched(0) {
             Self::ClaveAzul
         } else if matches.matched(1) {
@@ -298,8 +340,10 @@ impl From<&String> for Comando {
         } else if matches.matched(4) {
             Self::ClaveInterno
         } else if matches.matched(5) {
-            Self::Ayuda
+            Self::Generacion
         } else if matches.matched(6) {
+            Self::Ayuda
+        } else if matches.matched(7) {
             Self::Start
         } else {
             Self::None
@@ -311,17 +355,19 @@ static GEN_ACTUAL: &str = "Gen XXXIII\n\n";
 
 static START: &str = r#"Hola soy el SistemedicBot.
 Para buscar...
+-Clave usa /clave más las claves. 
 -Internos por nombre usa /inombre más los nombres a buscar.
 -Internos por clave usa /iclave más las claves.
--Clave usa /clave más las claves. 
+-Generación entera /generacion más la generación.
 -Nombre usa /nombre más los nombres.
 -Apellido usa /apellido más los apellidos.
 
 Ejemplo
 /clave A101 A027 A007 A010* A010
+/nombre Luis
+/generacion 33
 /iclave cKGr
 /inombre Karol
-/nombre Luis
 
 Para ayuda usa /help
 Comparte con https://t.me/sistemedicbot"#;
@@ -331,8 +377,10 @@ Para buscar por nombre usa /nombre ó /n más los nombres a buscar.
 Para buscar por apellido usa /apellido ó /a más los apellidos a buscar.
 Para buscar internos por clave usa /iclave ó /ic más las claves.
 Para buscar internos por nombre usa /inombre ó /in más los nombres a buscar.
+Para buscar generaciones enteras usa /generacion ó /g más las generaciones. 
 
 Ejemplo
+/g 32 33 19
 /clave A101 A007 A010*
 /c a342
 /iclave cKGr
