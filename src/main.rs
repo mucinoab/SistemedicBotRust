@@ -13,6 +13,7 @@ use tokio_postgres::{Error, NoTls};
 
 #[macro_use]
 extern crate log;
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -217,7 +218,7 @@ async fn main() -> Result<(), Error> {
                                     if let Ok(gen) = palabra.parse::<i32>() {
                                         if let Some(gen_obj) = roman::to(gen) {
                                             texto.push_str(&format!("\nGen {}\n\n", gen_obj));
-                                            if gen > 15 {
+                                            if gen > 15 && gen < 34 {
                                                 texto.push_str(
                                                     &map.par_iter()
                                                         .filter_map(|(clave, datos)| {
