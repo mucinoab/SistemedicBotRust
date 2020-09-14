@@ -21,14 +21,12 @@ extern crate lazy_static;
 async fn main() -> Result<(), Error> {
     log4rs::init_file("log_config.yml", Default::default()).expect("No se pudo iniciar Log");
 
-    info!("Iniciando...");
     let (client, connection) = tokio_postgres::connect(
         &env::var("DATABASE").expect("Base de datos no encontrada o mal configurada."),
         NoTls,
     )
     .await?;
 
-    info!("Conectando a base de datos...");
     tokio::spawn(async move {
         connection.await.expect("Conexión a base de datos fallida.");
     });
@@ -66,7 +64,7 @@ async fn main() -> Result<(), Error> {
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
-    info!("Datos procesados, listo para recibir querys");
+    info!("Datos procesados, listo para recibir querys.");
     while let Some(update) = stream.next().await {
         match update {
             Ok(update) => {
@@ -232,7 +230,7 @@ async fn main() -> Result<(), Error> {
                                                 );
                                             } else {
                                                 texto.push_str(
-                                                    "No tengo datos sobre esa generación...\n\n",
+                                                    "No tengo datos sobre esta generación. :( \n\n",
                                                 );
                                             }
                                         }
