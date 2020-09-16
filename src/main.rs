@@ -34,8 +34,7 @@ async fn main() -> Result<(), Error> {
 
     let map: HashMap<String, Persona> = client
         .query(
-            "SELECT clave, generacion, nombre, apellidos 
-            FROM (SELECT * from bot_claves UNION SELECT * from bot_internos)x;",
+            "SELECT * from bot_claves UNION SELECT * from bot_internos;",
             &[],
         )
         .await?
