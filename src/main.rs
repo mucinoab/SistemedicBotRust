@@ -6,7 +6,6 @@ use std::{
 use deunicode::deunicode;
 use futures::StreamExt;
 use hashbrown::HashMap;
-use rayon::prelude::*;
 use regex::{Regex, RegexSet};
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
@@ -38,7 +37,7 @@ async fn main() -> Result<(), Error> {
             &[],
         )
         .await?
-        .par_iter()
+        .iter()
         .map(|row| {
             (
                 row.get::<usize, &str>(0).to_uppercase(),
@@ -59,6 +58,7 @@ async fn main() -> Result<(), Error> {
     let re_claves: Regex = Regex::new(r"([Aa]\d{3}\*?)*([cC]\S{3})*").unwrap();
 
     let mut texto = String::with_capacity(348);
+    lazy_static::initialize(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Error> {
                                         let palabra = &deunicode(palabra).to_lowercase();
 
                                         texto.push_str(
-                                            &map.par_iter()
+                                            &map.iter()
                                                 .filter_map(|(clave, datos)| {
                                                     if deunicode(&datos.nombre)
                                                         .to_lowercase()
@@ -120,7 +120,7 @@ async fn main() -> Result<(), Error> {
                                         let palabra = &deunicode(palabra).to_lowercase();
 
                                         texto.push_str(
-                                            &map.par_iter()
+                                            &map.iter()
                                                 .filter_map(|(clave, datos)| {
                                                     if deunicode(&datos.apellidos)
                                                         .to_lowercase()
@@ -147,7 +147,7 @@ async fn main() -> Result<(), Error> {
                                             texto.push_str(&format!("\nGen {}\n\n", gen_obj));
                                             if gen > 15 && gen < 34 {
                                                 texto.push_str(
-                                                    &map.par_iter()
+                                                    &map.iter()
                                                         .filter_map(|(clave, datos)| {
                                                             if datos.generacion == gen_obj {
                                                                 Some(format!(
@@ -239,11 +239,6 @@ enum Comando {
 
 impl From<&String> for Comando {
     fn from(item: &String) -> Self {
-        lazy_static! {
-            static ref RE: RegexSet =
-                RegexSet::new(&["/[cC]", "/[nN]", "/[aA]", "/[gG]", "/[hH]", "/[sS]"]).unwrap();
-        }
-
         let matches = RE.matches(item);
 
         if matches.matched(0) {
@@ -262,6 +257,11 @@ impl From<&String> for Comando {
             Self::None
         }
     }
+}
+
+lazy_static! {
+    static ref RE: RegexSet =
+        RegexSet::new(&["/[cC]", "/[nN]", "/[aA]", "/[gG]", "/[hH]", "/[sS]"]).unwrap();
 }
 
 static START: &str = r#"Para buscar...
