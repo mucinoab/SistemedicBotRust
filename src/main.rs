@@ -5,8 +5,8 @@ use std::{
 
 use deunicode::deunicode;
 use futures::StreamExt;
-use hashbrown::HashMap;
 use regex::{Regex, RegexSet};
+use std::collections::BTreeMap;
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
 
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Error> {
         connection.await.expect("Conexión a base de datos fallida.");
     });
 
-    let map: HashMap<String, Persona> = client
+    let map: BTreeMap<String, Persona> = client
         .query(
             "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos;",
             &[],
