@@ -81,7 +81,11 @@ async fn main() -> Result<(), Error> {
                                             "{}  {} {}, gen {}\n",
                                             clave,
                                             datos.nombre,
-                                            datos.apellidos.split_whitespace().next().unwrap_or(""),
+                                            datos
+                                                .apellidos
+                                                .split_whitespace()
+                                                .next()
+                                                .unwrap_or_default(),
                                             datos.generacion,
                                         ));
                                     }
@@ -158,7 +162,7 @@ async fn main() -> Result<(), Error> {
                                                                         .apellidos
                                                                         .split_whitespace()
                                                                         .next()
-                                                                        .unwrap_or("")
+                                                                        .unwrap_or_default()
                                                                 ))
                                                             } else {
                                                                 None
@@ -227,6 +231,7 @@ struct Persona {
     generacion: String,
 }
 
+#[derive(Clone, Copy)]
 enum Comando {
     Clave,
     Nombre,
@@ -241,21 +246,23 @@ impl From<&String> for Comando {
     fn from(item: &String) -> Self {
         let matches = RE.matches(item);
 
-        if matches.matched(0) {
-            Self::Clave
-        } else if matches.matched(1) {
-            Self::Nombre
-        } else if matches.matched(2) {
-            Self::Apellido
-        } else if matches.matched(3) {
-            Self::Generacion
-        } else if matches.matched(4) {
-            Self::Ayuda
-        } else if matches.matched(5) {
-            Self::Start
-        } else {
-            Self::None
+        for (index, comando) in [
+            Self::Clave,
+            Self::Nombre,
+            Self::Apellido,
+            Self::Generacion,
+            Self::Ayuda,
+            Self::Start,
+        ]
+        .iter()
+        .enumerate()
+        {
+            if matches.matched(index) {
+                return *comando;
+            }
         }
+
+        Self::None
     }
 }
 
