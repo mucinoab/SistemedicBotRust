@@ -42,13 +42,8 @@ async fn main() -> Result<(), Error> {
             (
                 row.get::<usize, &str>(0).to_uppercase(),
                 Persona {
-                    generacion: match row.get(1) {
-                        0 => String::from("N"),
-                        _ => roman::to(row.get(1)).unwrap(),
-                    },
-
+                    generacion: row.get(1),
                     nombre: row.get(2),
-
                     apellidos: row.get(3),
                 },
             )
@@ -86,7 +81,8 @@ async fn main() -> Result<(), Error> {
                                                 .split_whitespace()
                                                 .next()
                                                 .unwrap_or_default(),
-                                            datos.generacion,
+                                            roman::to(datos.generacion)
+                                                .unwrap_or(String::from("N")),
                                         ));
                                     }
                                 }
@@ -153,7 +149,7 @@ async fn main() -> Result<(), Error> {
                                                 texto.push_str(
                                                     &map.iter()
                                                         .filter_map(|(clave, datos)| {
-                                                            if datos.generacion == gen_obj {
+                                                            if datos.generacion == gen {
                                                                 Some(format!(
                                                                     "{}  {} {}\n",
                                                                     clave,
@@ -228,7 +224,7 @@ fn responde(texto: &str, message: &Message, api: &Api) {
 struct Persona {
     nombre: String,
     apellidos: String,
-    generacion: String,
+    generacion: i32,
 }
 
 #[derive(Clone, Copy)]
