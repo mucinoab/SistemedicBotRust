@@ -1351,9 +1351,9 @@ version = "0.1.0"
 dependencies = [
  "deunicode",
  "futures",
- "lazy_static",
  "log 0.4.11",
  "log4rs",
+ "once_cell",
  "regex",
  "roman",
  "telegram-bot",

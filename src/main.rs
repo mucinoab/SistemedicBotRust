@@ -1,20 +1,20 @@
 use std::{
-    env, thread,
+    collections::BTreeMap,
+    env,
+    fmt::Write,
+    thread,
     time::{Duration, Instant},
 };
 
 use deunicode::deunicode;
 use futures::StreamExt;
-use regex::{Regex, RegexSet};
-use std::collections::BTreeMap;
+use once_cell::sync::Lazy;
+use regex::RegexSet;
 use telegram_bot::*;
 use tokio_postgres::{Error, NoTls};
 
 #[macro_use]
 extern crate log;
-
-#[macro_use]
-extern crate lazy_static;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -50,10 +50,8 @@ async fn main() -> Result<(), Error> {
         })
         .collect();
 
-    let re_claves: Regex = Regex::new(r"([Aa]\d{3}\*?)*([cC]\S{3})*").unwrap();
-
     let mut texto = String::with_capacity(348);
-    lazy_static::initialize(&RE);
+    Lazy::force(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
@@ -68,110 +66,117 @@ async fn main() -> Result<(), Error> {
 
                         match Comando::from(data) {
                             Comando::Clave => {
-                                for cap in re_claves.find_iter(data) {
-                                    if let Some((clave, datos)) =
-                                        map.get_key_value(&cap.as_str().to_uppercase())
+                                for cap in data.split_whitespace().skip(1) {
+                                    if let Some((clave, persona)) =
+                                        map.get_key_value(&cap.to_uppercase())
                                     {
-                                        texto.push_str(&format!(
-                                            "{}  {} {}, gen {}\n",
+                                        writeln!(
+                                            &mut texto,
+                                            "{}  {} {}, gen {}",
+                                            clave,
+                                            persona.nombre,
+                                            persona
+                                                .apellidos
+                                                .split_whitespace()
+                                                .next()
+                                                .unwrap_or_default(),
+                                            roman::to(persona.generacion)
+                                                .unwrap_or_else(|| String::from("N")),
+                                        )
+                                        .unwrap();
+                                    }
+                                }
+                            }
+
+                            Comando::Nombre => {
+                                let nombres_buscados: Vec<String> = data
+                                    .split_whitespace()
+                                    .skip(1)
+                                    .filter_map(|palabra| {
+                                        if palabra.len() > 2 {
+                                            Some(deunicode(palabra).to_lowercase())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+
+                                for (clave, persona) in &map {
+                                    let nombre = deunicode(&persona.nombre).to_lowercase();
+
+                                    for nombre_buscado in &nombres_buscados {
+                                        if nombre.contains(nombre_buscado) {
+                                            writeln!(
+                                                &mut texto,
+                                                "{}  {}",
+                                                clave, persona.apellidos
+                                            )
+                                            .unwrap_or_default();
+                                        }
+                                    }
+                                }
+                            }
+
+                            Comando::Apellido => {
+                                let apellidos_buscados: Vec<String> = data
+                                    .split_whitespace()
+                                    .skip(1)
+                                    .filter_map(|palabra| {
+                                        if palabra.len() > 2 {
+                                            Some(deunicode(palabra).to_lowercase())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+
+                                for (clave, persona) in &map {
+                                    let apellidos = deunicode(&persona.apellidos).to_lowercase();
+
+                                    for apellido_buscado in &apellidos_buscados {
+                                        if apellidos.contains(apellido_buscado) {
+                                            writeln!(&mut texto, "{}  {}", clave, persona.nombre)
+                                                .unwrap_or_default();
+                                        }
+                                    }
+                                }
+                            }
+
+                            Comando::Generacion => {
+                                let generaciones: Vec<i32> =
+                                    data.split_whitespace().skip(1).filter_map(|palabra| {
+                                        match palabra.parse::<i32>() {
+                                            Ok(numero) => {
+                                                if numero > 15 && numero < 34 {
+                                                    Some(numero)
+                                                } else {
+                                                    writeln!(
+                                                        &mut texto,
+                                                        "No tengo datos sobre quien pertenece a la generación {} :(", numero
+                                                    )
+                                                    .unwrap_or_default();
+
+                                                    None
+                                                }
+                                            }
+                                            _ => None,
+                                        }
+                                    }).collect();
+
+                                for (clave, datos) in &map {
+                                    if generaciones.iter().any(|n| *n == datos.generacion) {
+                                        writeln!(
+                                            &mut texto,
+                                            "{}  {} {}",
                                             clave,
                                             datos.nombre,
                                             datos
                                                 .apellidos
                                                 .split_whitespace()
                                                 .next()
-                                                .unwrap_or_default(),
-                                            roman::to(datos.generacion)
-                                                .unwrap_or(String::from("N")),
-                                        ));
-                                    }
-                                }
-                            }
-
-                            Comando::Nombre => {
-                                for palabra in data.split_whitespace() {
-                                    if palabra.len() > 2 {
-                                        let palabra = &deunicode(palabra).to_lowercase();
-
-                                        texto.push_str(
-                                            &map.iter()
-                                                .filter_map(|(clave, datos)| {
-                                                    if deunicode(&datos.nombre)
-                                                        .to_lowercase()
-                                                        .contains(palabra)
-                                                    {
-                                                        Some(format!(
-                                                            "{}  {}\n",
-                                                            clave, datos.apellidos
-                                                        ))
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                                .collect::<String>(),
-                                        );
-                                    }
-                                }
-                            }
-
-                            Comando::Apellido => {
-                                for palabra in data.split_whitespace() {
-                                    if palabra.len() > 2 {
-                                        let palabra = &deunicode(palabra).to_lowercase();
-
-                                        texto.push_str(
-                                            &map.iter()
-                                                .filter_map(|(clave, datos)| {
-                                                    if deunicode(&datos.apellidos)
-                                                        .to_lowercase()
-                                                        .contains(palabra)
-                                                    {
-                                                        Some(format!(
-                                                            "{}  {}\n",
-                                                            clave, datos.nombre
-                                                        ))
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                                .collect::<String>(),
-                                        );
-                                    }
-                                }
-                            }
-
-                            Comando::Generacion => {
-                                for palabra in data.split_whitespace() {
-                                    if let Ok(gen) = palabra.parse::<i32>() {
-                                        if let Some(gen_obj) = roman::to(gen) {
-                                            texto.push_str(&format!("\nGen {}\n\n", gen_obj));
-                                            if gen > 15 && gen < 34 {
-                                                texto.push_str(
-                                                    &map.iter()
-                                                        .filter_map(|(clave, datos)| {
-                                                            if datos.generacion == gen {
-                                                                Some(format!(
-                                                                    "{}  {} {}\n",
-                                                                    clave,
-                                                                    datos.nombre,
-                                                                    datos
-                                                                        .apellidos
-                                                                        .split_whitespace()
-                                                                        .next()
-                                                                        .unwrap_or_default()
-                                                                ))
-                                                            } else {
-                                                                None
-                                                            }
-                                                        })
-                                                        .collect::<String>(),
-                                                );
-                                            } else {
-                                                texto.push_str(
-                                                    "No tengo datos sobre esta generación. :( \n\n",
-                                                );
-                                            }
-                                        }
+                                                .unwrap_or_default()
+                                        )
+                                        .unwrap_or_default();
                                     }
                                 }
                             }
@@ -262,10 +267,8 @@ impl From<&String> for Comando {
     }
 }
 
-lazy_static! {
-    static ref RE: RegexSet =
-        RegexSet::new(&["/[cC]", "/[nN]", "/[aA]", "/[gG]", "/[hH]", "/[sS]"]).unwrap();
-}
+static RE: Lazy<RegexSet> =
+    Lazy::new(|| RegexSet::new(&["/[cC]", "/[nN]", "/[aA]", "/[gG]", "/[hH]", "/[sS]"]).unwrap());
 
 static START: &str = r#"Para buscar...
 - Clave usa /clave más las claves. 

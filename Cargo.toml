@@ -10,11 +10,11 @@ regex = "1.3.9"
 telegram-bot = { git = "https://github.com/telegram-rs/telegram-bot.git" }
 futures = "0.3.5"
 tokio = { version = "0.2.22", features = ["rt-core", "rt-threaded", "macros"] }
-lazy_static = "1.4.0"
 tokio-postgres = "0.5.5"
 log = "0.4.11"
 deunicode = "1.1.1"
 log4rs = "0.13.0"
+once_cell = "1.4.1"
 
 [profile.release]
 lto = "fat"
