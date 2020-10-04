@@ -10,37 +10,26 @@ use deunicode::deunicode;
 use futures::StreamExt;
 use once_cell::sync::Lazy;
 use regex::RegexSet;
+use sqlx::{postgres::*, prelude::*};
 use telegram_bot::*;
-use tokio_postgres::{Error, NoTls};
 
 #[macro_use]
 extern crate log;
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<(), sqlx::Error> {
     log4rs::init_file("log_config.yml", Default::default()).expect("No se pudo iniciar Log");
     info!("Iniciando...");
 
-    let (client, connection) = tokio_postgres::connect(
-        &env::var("DATABASE").expect("Base de datos no encontrada o mal configurada."),
-        NoTls,
-    )
-    .await?;
+    let mut map: BTreeMap<String, Persona> = BTreeMap::new();
 
-    tokio::spawn(async move {
-        connection.await.expect("Conexión a base de datos fallida.");
-    });
+    let mut conn =
+        PgConnection::connect(&env::var("DATABASE_URL").expect("No DATABASE_URL variable")).await?;
 
-    let map: BTreeMap<String, Persona> = client
-        .query(
-            "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos;",
-            &[],
-        )
-        .await?
-        .iter()
-        .map(|row| {
-            (
-                row.get::<usize, &str>(0).to_uppercase(),
+    sqlx::query("SELECT * FROM bot_claves UNION SELECT * FROM bot_internos;")
+        .map(|row: PgRow| {
+            map.insert(
+                row.get::<&str, usize>(0).to_uppercase(),
                 Persona {
                     generacion: row.get(1),
                     nombre: row.get(2),
@@ -48,7 +37,10 @@ async fn main() -> Result<(), Error> {
                 },
             )
         })
-        .collect();
+        .fetch_all(&mut conn)
+        .await?;
+
+    conn.close();
 
     let mut texto = String::with_capacity(348);
     Lazy::force(&RE);
@@ -210,7 +202,7 @@ async fn main() -> Result<(), Error> {
 
             Err(e) => {
                 error!("{}", e);
-                thread::sleep(Duration::from_millis(1000));
+                thread::sleep(Duration::from_secs(1));
             }
         }
     }
@@ -281,7 +273,7 @@ Búsquedas incluyen azules e internos.
 Ejemplo
 /clave A101 A027 A010* cKGr 
 /nombre Luis Karol
-/generacion 33 32
+/generacion 32
 /apellido Soriano
 
 Para ayuda usa /help
@@ -295,7 +287,7 @@ static AYUDA: &str = r#"Para buscar por...
 Búsquedas incluyen azules e internos. 
 
 Ejemplo
-/g 32 33 19
+/g 32 33
 /clave a101 A007 A010*
 /c A342 A225 cKGr
 /n Sam Pedro
