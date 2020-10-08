@@ -11,6 +11,7 @@ use deunicode::deunicode;
 use once_cell::sync::Lazy;
 use postgres::{Client, NoTls};
 use regex::RegexSet;
+use smartstring::alias::String;
 use smol::prelude::*;
 use telegram_bot::{types::Message, Api, CanSendMessage, MessageKind, UpdateKind};
 
@@ -27,26 +28,26 @@ fn main() {
     )
     .expect("PostgreSQL no encontrada o mal configurada.");
 
-    let map: BTreeMap<String, Persona> = client
+    let mut map: BTreeMap<String, Persona> = BTreeMap::new();
+    client
         .query(
             "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos;",
             &[],
         )
         .expect("Extraer datos de BDD")
         .iter()
-        .map(|row| {
-            (
-                row.get::<usize, &str>(0).to_uppercase(),
+        .for_each(|row| {
+            map.insert(
+                String::from(row.get::<usize, &str>(0)),
                 Persona {
-                    generacion: row.get(1),
-                    nombre: row.get(2),
-                    apellidos: row.get(3),
+                    generacion: row.get::<usize, i32>(1) as i8,
+                    nombre: String::from(row.get::<usize, &str>(2)),
+                    apellidos: String::from(row.get::<usize, &str>(3)),
                 },
-            )
-        })
-        .collect();
+            );
+        });
 
-    let mut texto = String::with_capacity(348);
+    let mut texto = String::new();
     Lazy::force(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
@@ -66,7 +67,7 @@ fn main() {
                                 Comando::Clave => {
                                     for cap in data.split_whitespace().skip(1) {
                                         if let Some((clave, persona)) =
-                                            map.get_key_value(&cap.to_uppercase())
+                                            map.get_key_value(cap.to_uppercase().as_str())
                                         {
                                             writeln!(
                                                 &mut texto,
@@ -78,8 +79,9 @@ fn main() {
                                                     .split_whitespace()
                                                     .next()
                                                     .unwrap_or_default(),
-                                                roman::to(persona.generacion)
-                                                    .unwrap_or_else(|| String::from("N")),
+                                                roman::to(persona.generacion as _).unwrap_or_else(
+                                                    || std::string::String::from("N")
+                                                ),
                                             )
                                             .unwrap();
                                         }
@@ -92,7 +94,9 @@ fn main() {
                                         .skip(1)
                                         .filter_map(|palabra| {
                                             if palabra.len() > 2 {
-                                                Some(deunicode(palabra).to_lowercase())
+                                                Some(String::from(
+                                                    deunicode(palabra).to_lowercase(),
+                                                ))
                                             } else {
                                                 None
                                             }
@@ -103,7 +107,7 @@ fn main() {
                                         let nombre = deunicode(&persona.nombre).to_lowercase();
 
                                         for nombre_buscado in &nombres_buscados {
-                                            if nombre.contains(nombre_buscado) {
+                                            if nombre.contains(nombre_buscado.as_str()) {
                                                 writeln!(
                                                     &mut texto,
                                                     "{}  {}",
@@ -121,7 +125,9 @@ fn main() {
                                         .skip(1)
                                         .filter_map(|palabra| {
                                             if palabra.len() > 2 {
-                                                Some(deunicode(palabra).to_lowercase())
+                                                Some(String::from(
+                                                    deunicode(palabra).to_lowercase(),
+                                                ))
                                             } else {
                                                 None
                                             }
@@ -133,7 +139,7 @@ fn main() {
                                             deunicode(&persona.apellidos).to_lowercase();
 
                                         for apellido_buscado in &apellidos_buscados {
-                                            if apellidos.contains(apellido_buscado) {
+                                            if apellidos.contains(apellido_buscado.as_str()) {
                                                 writeln!(
                                                     &mut texto,
                                                     "{}  {}",
@@ -146,9 +152,9 @@ fn main() {
                                 }
 
                                 Comando::Generacion => {
-                                    let generaciones: Vec<i32> =
+                                    let generaciones: Vec<i8> =
                                     data.split_whitespace().skip(1).filter_map(|palabra| {
-                                        match palabra.parse::<i32>() {
+                                        match palabra.parse::<i8>() {
                                             Ok(numero) => {
                                                 if numero > 15 && numero < 34 {
                                                     Some(numero)
@@ -231,7 +237,7 @@ fn responde(texto: &str, message: &Message, api: &Api) {
 struct Persona {
     nombre: String,
     apellidos: String,
-    generacion: i32,
+    generacion: i8,
 }
 
 #[derive(Clone, Copy)]
@@ -245,8 +251,8 @@ enum Comando {
     None,
 }
 
-impl From<&String> for Comando {
-    fn from(item: &String) -> Self {
+impl From<&std::string::String> for Comando {
+    fn from(item: &std::string::String) -> Self {
         let matches = RE.matches(item);
 
         for (index, comando) in [
