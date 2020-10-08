@@ -1618,6 +1618,7 @@ dependencies = [
  "postgres",
  "regex",
  "roman",
+ "smallvec",
  "smartstring",
  "smol",
  "telegram-bot",

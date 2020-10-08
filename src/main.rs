@@ -11,6 +11,7 @@ use deunicode::deunicode;
 use once_cell::sync::Lazy;
 use postgres::{Client, NoTls};
 use regex::RegexSet;
+use smallvec::SmallVec;
 use smartstring::alias::String;
 use smol::prelude::*;
 use telegram_bot::{types::Message, Api, CanSendMessage, MessageKind, UpdateKind};
@@ -38,16 +39,16 @@ fn main() {
         .iter()
         .for_each(|row| {
             map.insert(
-                String::from(row.get::<usize, &str>(0)),
+                String::from(row.get::<usize, &str>(0).trim()),
                 Persona {
                     generacion: row.get::<usize, i32>(1) as i8,
-                    nombre: String::from(row.get::<usize, &str>(2)),
-                    apellidos: String::from(row.get::<usize, &str>(3)),
+                    nombre: String::from(row.get::<usize, &str>(2).trim()),
+                    apellidos: String::from(row.get::<usize, &str>(3).trim()),
                 },
             );
         });
 
-    let mut texto = String::new();
+    let mut texto = std::string::String::with_capacity(348);
     Lazy::force(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
@@ -70,7 +71,7 @@ fn main() {
                                             map.get_key_value(cap.to_uppercase().as_str())
                                         {
                                             writeln!(
-                                                &mut texto,
+                                                texto,
                                                 "{}  {} {}, gen {}",
                                                 clave,
                                                 persona.nombre,
@@ -108,12 +109,8 @@ fn main() {
 
                                         for nombre_buscado in &nombres_buscados {
                                             if nombre.contains(nombre_buscado.as_str()) {
-                                                writeln!(
-                                                    &mut texto,
-                                                    "{}  {}",
-                                                    clave, persona.apellidos
-                                                )
-                                                .unwrap_or_default();
+                                                writeln!(texto, "{}  {}", clave, persona.apellidos)
+                                                    .unwrap_or_default();
                                             }
                                         }
                                     }
@@ -140,42 +137,37 @@ fn main() {
 
                                         for apellido_buscado in &apellidos_buscados {
                                             if apellidos.contains(apellido_buscado.as_str()) {
-                                                writeln!(
-                                                    &mut texto,
-                                                    "{}  {}",
-                                                    clave, persona.nombre
-                                                )
-                                                .unwrap_or_default();
+                                                writeln!(texto, "{}  {}", clave, persona.nombre)
+                                                    .unwrap_or_default();
                                             }
                                         }
                                     }
                                 }
 
                                 Comando::Generacion => {
-                                    let generaciones: Vec<i8> =
-                                    data.split_whitespace().skip(1).filter_map(|palabra| {
+                                    let mut generaciones = SmallVec::<[i8; 1]>::new();
+
+                                    data.split_whitespace().skip(1).for_each(|palabra| {
                                         match palabra.parse::<i8>() {
                                             Ok(numero) => {
                                                 if numero > 15 && numero < 34 {
-                                                    Some(numero)
+                                                    generaciones.push(numero);
                                                 } else {
                                                     writeln!(
-                                                        &mut texto,
+                                                        texto,
                                                         "No tengo datos sobre quien pertenece a la generación {} :(", numero
                                                     )
                                                     .unwrap_or_default();
-
-                                                    None
                                                 }
                                             }
-                                            _ => None,
+                                            _ => {},
                                         }
-                                    }).collect();
+                                    });
 
                                     for (clave, datos) in &map {
                                         if generaciones.iter().any(|n| *n == datos.generacion) {
                                             writeln!(
-                                                &mut texto,
+                                                texto,
                                                 "{}  {} {}",
                                                 clave,
                                                 datos.nombre,
