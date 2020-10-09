@@ -49,6 +49,7 @@ fn main() {
         });
 
     let mut texto = std::string::String::with_capacity(348);
+    let mut generaciones = SmallVec::<[i8; 2]>::new();
     Lazy::force(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
@@ -90,10 +91,8 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    let nombres_buscados: Vec<String> = data
-                                        .split_whitespace()
-                                        .skip(1)
-                                        .filter_map(|palabra| {
+                                    let mut nombres_buscados =
+                                        data.split_whitespace().skip(1).filter_map(|palabra| {
                                             if palabra.len() > 2 {
                                                 Some(String::from(
                                                     deunicode(palabra).to_lowercase(),
@@ -101,26 +100,23 @@ fn main() {
                                             } else {
                                                 None
                                             }
-                                        })
-                                        .collect();
+                                        });
 
                                     for (clave, persona) in &map {
                                         let nombre = deunicode(&persona.nombre).to_lowercase();
 
-                                        for nombre_buscado in &nombres_buscados {
-                                            if nombre.contains(nombre_buscado.as_str()) {
-                                                writeln!(texto, "{}  {}", clave, persona.apellidos)
-                                                    .unwrap_or_default();
-                                            }
+                                        if nombres_buscados.any(|nombre_buscado| {
+                                            nombre.contains(nombre_buscado.as_str())
+                                        }) {
+                                            writeln!(texto, "{}  {}", clave, persona.apellidos)
+                                                .unwrap_or_default();
                                         }
                                     }
                                 }
 
                                 Comando::Apellido => {
-                                    let apellidos_buscados: Vec<String> = data
-                                        .split_whitespace()
-                                        .skip(1)
-                                        .filter_map(|palabra| {
+                                    let mut apellidos_buscados =
+                                        data.split_whitespace().skip(1).filter_map(|palabra| {
                                             if palabra.len() > 2 {
                                                 Some(String::from(
                                                     deunicode(palabra).to_lowercase(),
@@ -128,25 +124,22 @@ fn main() {
                                             } else {
                                                 None
                                             }
-                                        })
-                                        .collect();
+                                        });
 
                                     for (clave, persona) in &map {
                                         let apellidos =
                                             deunicode(&persona.apellidos).to_lowercase();
 
-                                        for apellido_buscado in &apellidos_buscados {
-                                            if apellidos.contains(apellido_buscado.as_str()) {
-                                                writeln!(texto, "{}  {}", clave, persona.nombre)
-                                                    .unwrap_or_default();
-                                            }
+                                        if apellidos_buscados.any(|apellido_buscado| {
+                                            apellidos.contains(apellido_buscado.as_str())
+                                        }) {
+                                            writeln!(texto, "{}  {}", clave, persona.nombre)
+                                                .unwrap_or_default();
                                         }
                                     }
                                 }
 
                                 Comando::Generacion => {
-                                    let mut generaciones = SmallVec::<[i8; 1]>::new();
-
                                     data.split_whitespace().skip(1).for_each(|palabra| {
                                         match palabra.parse::<i8>() {
                                             Ok(numero) => {
@@ -205,6 +198,7 @@ fn main() {
                             );
 
                             texto.clear();
+                            generaciones.clear();
                         }
                     }
                 }
