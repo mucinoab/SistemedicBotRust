@@ -92,8 +92,10 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    let nombres_buscados =
-                                        data.split_whitespace().skip(1).filter_map(|palabra| {
+                                    let nombres_buscados: Vec<String> = data
+                                        .split_whitespace()
+                                        .skip(1)
+                                        .filter_map(|palabra| {
                                             if palabra.len() > 2 {
                                                 Some(String::from(
                                                     deunicode(palabra).to_lowercase(),
@@ -101,13 +103,14 @@ fn main() {
                                             } else {
                                                 None
                                             }
-                                        });
+                                        })
+                                        .collect();
 
                                     for (clave, persona) in &map {
                                         let nombre = deunicode(&persona.nombre).to_lowercase();
 
                                         encontrado =
-                                            nombres_buscados.clone().any(|nombre_buscado| {
+                                            nombres_buscados.iter().any(|nombre_buscado| {
                                                 nombre.contains(nombre_buscado.as_str())
                                             });
 
@@ -119,8 +122,10 @@ fn main() {
                                 }
 
                                 Comando::Apellido => {
-                                    let apellidos_buscados =
-                                        data.split_whitespace().skip(1).filter_map(|palabra| {
+                                    let apellidos_buscados: Vec<String> = data
+                                        .split_whitespace()
+                                        .skip(1)
+                                        .filter_map(|palabra| {
                                             if palabra.len() > 2 {
                                                 Some(String::from(
                                                     deunicode(palabra).to_lowercase(),
@@ -128,14 +133,15 @@ fn main() {
                                             } else {
                                                 None
                                             }
-                                        });
+                                        })
+                                        .collect();
 
                                     for (clave, persona) in &map {
                                         let apellidos =
                                             deunicode(&persona.apellidos).to_lowercase();
 
                                         encontrado =
-                                            apellidos_buscados.clone().any(|apellido_buscado| {
+                                            apellidos_buscados.iter().any(|apellido_buscado| {
                                                 apellidos.contains(apellido_buscado.as_str())
                                             });
 
