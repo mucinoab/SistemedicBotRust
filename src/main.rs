@@ -49,6 +49,7 @@ fn main() {
         });
 
     let mut texto = std::string::String::with_capacity(348);
+    let mut buscados: Vec<String> = Vec::with_capacity(1);
     let mut generaciones = SmallVec::<[i8; 2]>::new();
     let mut encontrado = false;
     Lazy::force(&RE);
@@ -92,7 +93,7 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    let nombres_buscados: Vec<String> = data
+                                    buscados = data
                                         .split_whitespace()
                                         .skip(1)
                                         .filter_map(|palabra| {
@@ -109,10 +110,9 @@ fn main() {
                                     for (clave, persona) in &map {
                                         let nombre = deunicode(&persona.nombre).to_lowercase();
 
-                                        encontrado =
-                                            nombres_buscados.iter().any(|nombre_buscado| {
-                                                nombre.contains(nombre_buscado.as_str())
-                                            });
+                                        encontrado = buscados.iter().any(|nombre_buscado| {
+                                            nombre.contains(nombre_buscado.as_str())
+                                        });
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.apellidos)
@@ -122,7 +122,7 @@ fn main() {
                                 }
 
                                 Comando::Apellido => {
-                                    let apellidos_buscados: Vec<String> = data
+                                    buscados = data
                                         .split_whitespace()
                                         .skip(1)
                                         .filter_map(|palabra| {
@@ -140,10 +140,9 @@ fn main() {
                                         let apellidos =
                                             deunicode(&persona.apellidos).to_lowercase();
 
-                                        encontrado =
-                                            apellidos_buscados.iter().any(|apellido_buscado| {
-                                                apellidos.contains(apellido_buscado.as_str())
-                                            });
+                                        encontrado = buscados.iter().any(|apellido_buscado| {
+                                            apellidos.contains(apellido_buscado.as_str())
+                                        });
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.nombre)
@@ -210,6 +209,7 @@ fn main() {
 
                             texto.clear();
                             generaciones.clear();
+                            buscados.clear();
                         }
                     }
                 }
