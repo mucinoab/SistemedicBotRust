@@ -50,6 +50,7 @@ fn main() {
 
     let mut texto = std::string::String::with_capacity(348);
     let mut generaciones = SmallVec::<[i8; 2]>::new();
+    let mut encontrado = false;
     Lazy::force(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
@@ -91,7 +92,7 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    let mut nombres_buscados =
+                                    let nombres_buscados =
                                         data.split_whitespace().skip(1).filter_map(|palabra| {
                                             if palabra.len() > 2 {
                                                 Some(String::from(
@@ -105,18 +106,24 @@ fn main() {
                                     for (clave, persona) in &map {
                                         let nombre = deunicode(&persona.nombre).to_lowercase();
 
-                                        if nombres_buscados.any(|nombre_buscado| {
-                                            nombre.contains(nombre_buscado.as_str())
-                                        }) {
+                                        encontrado =
+                                            nombres_buscados.clone().any(|nombre_buscado| {
+                                                nombre.contains(nombre_buscado.as_str())
+                                            });
+
+                                        if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.apellidos)
                                                 .unwrap_or_default();
                                         }
+                                        eprintln!("{}", nombre,);
                                     }
                                 }
 
                                 Comando::Apellido => {
-                                    let mut apellidos_buscados =
-                                        data.split_whitespace().skip(1).filter_map(|palabra| {
+                                    let apellidos_buscados: Vec<String> = data
+                                        .split_whitespace()
+                                        .skip(1)
+                                        .filter_map(|palabra| {
                                             if palabra.len() > 2 {
                                                 Some(String::from(
                                                     deunicode(palabra).to_lowercase(),
@@ -124,15 +131,19 @@ fn main() {
                                             } else {
                                                 None
                                             }
-                                        });
+                                        })
+                                        .collect();
 
                                     for (clave, persona) in &map {
                                         let apellidos =
                                             deunicode(&persona.apellidos).to_lowercase();
 
-                                        if apellidos_buscados.any(|apellido_buscado| {
-                                            apellidos.contains(apellido_buscado.as_str())
-                                        }) {
+                                        encontrado =
+                                            apellidos_buscados.iter().any(|apellido_buscado| {
+                                                apellidos.contains(apellido_buscado.as_str())
+                                            });
+
+                                        if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.nombre)
                                                 .unwrap_or_default();
                                         }
@@ -141,8 +152,8 @@ fn main() {
 
                                 Comando::Generacion => {
                                     data.split_whitespace().skip(1).for_each(|palabra| {
-                                        match palabra.parse::<i8>() {
-                                            Ok(numero) => {
+
+                                    if let Ok(numero) = palabra.parse::<i8>() {
                                                 if numero > 15 && numero < 34 {
                                                     generaciones.push(numero);
                                                 } else {
@@ -152,8 +163,6 @@ fn main() {
                                                     )
                                                     .unwrap_or_default();
                                                 }
-                                            }
-                                            _ => {},
                                         }
                                     });
 
