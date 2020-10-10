@@ -39,7 +39,7 @@ fn main() {
         .iter()
         .for_each(|row| {
             map.insert(
-                String::from(row.get::<usize, &str>(0).trim()),
+                String::from(row.get::<usize, &str>(0).to_uppercase().trim()),
                 Persona {
                     generacion: row.get::<usize, i32>(1) as i8,
                     nombre: String::from(row.get::<usize, &str>(2).trim()),
@@ -48,9 +48,9 @@ fn main() {
             );
         });
 
-    let mut texto = std::string::String::with_capacity(348);
-    let mut buscados: Vec<String> = Vec::with_capacity(1);
-    let mut generaciones = SmallVec::<[i8; 2]>::new();
+    let mut texto = String::new();
+    let mut buscados = SmallVec::<[String; 1]>::new();
+    let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
     Lazy::force(&RE);
 
@@ -93,22 +93,17 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    buscados = data
-                                        .split_whitespace()
-                                        .skip(1)
-                                        .filter_map(|palabra| {
-                                            if palabra.len() > 2 {
-                                                Some(String::from(
-                                                    deunicode(palabra).to_lowercase(),
-                                                ))
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect();
+                                    data.split_whitespace().skip(1).for_each(|palabra| {
+                                        if palabra.len() > 2 {
+                                            buscados.push(String::from(
+                                                deunicode(palabra).to_ascii_lowercase(),
+                                            ));
+                                        }
+                                    });
 
                                     for (clave, persona) in &map {
-                                        let nombre = deunicode(&persona.nombre).to_lowercase();
+                                        let nombre =
+                                            deunicode(&persona.nombre).to_ascii_lowercase();
 
                                         encontrado = buscados.iter().any(|nombre_buscado| {
                                             nombre.contains(nombre_buscado.as_str())
@@ -116,29 +111,23 @@ fn main() {
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.apellidos)
-                                                .unwrap_or_default();
+                                                .unwrap();
                                         }
                                     }
                                 }
 
                                 Comando::Apellido => {
-                                    buscados = data
-                                        .split_whitespace()
-                                        .skip(1)
-                                        .filter_map(|palabra| {
-                                            if palabra.len() > 2 {
-                                                Some(String::from(
-                                                    deunicode(palabra).to_lowercase(),
-                                                ))
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect();
+                                    data.split_whitespace().skip(1).for_each(|palabra| {
+                                        if palabra.len() > 2 {
+                                            buscados.push(String::from(
+                                                deunicode(palabra).to_ascii_lowercase(),
+                                            ));
+                                        }
+                                    });
 
                                     for (clave, persona) in &map {
                                         let apellidos =
-                                            deunicode(&persona.apellidos).to_lowercase();
+                                            deunicode(&persona.apellidos).to_ascii_lowercase();
 
                                         encontrado = buscados.iter().any(|apellido_buscado| {
                                             apellidos.contains(apellido_buscado.as_str())
@@ -146,7 +135,7 @@ fn main() {
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.nombre)
-                                                .unwrap_or_default();
+                                                .unwrap();
                                         }
                                     }
                                 }
