@@ -49,7 +49,7 @@ fn main() {
         });
 
     let mut texto = String::new();
-    let mut buscados = SmallVec::<[String; 1]>::new();
+    let mut buscados = SmallVec::<[std::string::String; 1]>::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
     Lazy::force(&RE);
@@ -83,9 +83,7 @@ fn main() {
                                                     .split_whitespace()
                                                     .next()
                                                     .unwrap_or_default(),
-                                                roman::to(persona.generacion as _).unwrap_or_else(
-                                                    || std::string::String::from("N")
-                                                ),
+                                                roman(persona.generacion),
                                             )
                                             .unwrap();
                                         }
@@ -95,9 +93,7 @@ fn main() {
                                 Comando::Nombre => {
                                     data.split_whitespace().skip(1).for_each(|palabra| {
                                         if palabra.len() > 2 {
-                                            buscados.push(String::from(
-                                                deunicode(palabra).to_ascii_lowercase(),
-                                            ));
+                                            buscados.push(deunicode(palabra).to_ascii_lowercase());
                                         }
                                     });
 
@@ -119,9 +115,7 @@ fn main() {
                                 Comando::Apellido => {
                                     data.split_whitespace().skip(1).for_each(|palabra| {
                                         if palabra.len() > 2 {
-                                            buscados.push(String::from(
-                                                deunicode(palabra).to_ascii_lowercase(),
-                                            ));
+                                            buscados.push(deunicode(palabra).to_ascii_lowercase());
                                         }
                                     });
 
@@ -263,6 +257,22 @@ impl From<&std::string::String> for Comando {
 
 static RE: Lazy<RegexSet> =
     Lazy::new(|| RegexSet::new(&["/[cC]", "/[nN]", "/[aA]", "/[gG]", "/[hH]", "/[sS]"]).unwrap());
+
+fn roman(mut n: i8) -> String {
+    let mut roman = String::new();
+
+    if n == 0 {
+        roman.push_str("N");
+    } else {
+        for (letra, valor) in &[("X", 10), ("V", 5), ("I", 1)] {
+            while n >= *valor {
+                n -= valor;
+                roman.push_str(letra);
+            }
+        }
+    }
+    roman
+}
 
 static START: &str = r#"Para buscar...
 - Clave usa /clave más las claves. 
