@@ -29,7 +29,7 @@ fn main() {
     )
     .expect("PostgreSQL no encontrada o mal configurada.");
 
-    let mut map: BTreeMap<String, Persona> = BTreeMap::new();
+    let mut datos: BTreeMap<String, Persona> = BTreeMap::new();
     client
         .query(
             "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos;",
@@ -38,8 +38,8 @@ fn main() {
         .expect("Extraer datos de BDD")
         .iter()
         .for_each(|row| {
-            map.insert(
-                String::from(row.get::<usize, &str>(0).to_uppercase().trim()),
+            datos.insert(
+                String::from(row.get::<usize, &str>(0).to_ascii_uppercase().trim()),
                 Persona {
                     generacion: row.get::<usize, i32>(1) as i8,
                     nombre: String::from(row.get::<usize, &str>(2).trim()),
@@ -67,11 +67,11 @@ fn main() {
                         if let MessageKind::Text { ref data, .. } = message.kind {
                             let now = Instant::now();
 
-                            match Comando::from(data) {
+                            match Comando::from(data.as_str()) {
                                 Comando::Clave => {
-                                    for cap in data.split_whitespace().skip(1) {
-                                        if let Some((clave, persona)) =
-                                            map.get_key_value(cap.to_uppercase().as_str())
+                                    for palabra in data.split_whitespace().skip(1) {
+                                        if let Some((clave, persona)) = datos
+                                            .get_key_value(palabra.to_ascii_uppercase().as_str())
                                         {
                                             writeln!(
                                                 texto,
@@ -97,13 +97,13 @@ fn main() {
                                         }
                                     });
 
-                                    for (clave, persona) in &map {
+                                    for (clave, persona) in &datos {
                                         let nombre =
                                             deunicode(&persona.nombre).to_ascii_lowercase();
 
-                                        encontrado = buscados.iter().any(|nombre_buscado| {
-                                            nombre.contains(nombre_buscado.as_str())
-                                        });
+                                        encontrado = buscados
+                                            .iter()
+                                            .any(|nombre_buscado| nombre.contains(nombre_buscado));
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.apellidos)
@@ -119,12 +119,12 @@ fn main() {
                                         }
                                     });
 
-                                    for (clave, persona) in &map {
+                                    for (clave, persona) in &datos {
                                         let apellidos =
                                             deunicode(&persona.apellidos).to_ascii_lowercase();
 
                                         encontrado = buscados.iter().any(|apellido_buscado| {
-                                            apellidos.contains(apellido_buscado.as_str())
+                                            apellidos.contains(apellido_buscado)
                                         });
 
                                         if encontrado {
@@ -150,7 +150,7 @@ fn main() {
                                         }
                                     });
 
-                                    for (clave, datos) in &map {
+                                    for (clave, datos) in &datos {
                                         if generaciones.iter().any(|n| *n == datos.generacion) {
                                             writeln!(
                                                 texto,
@@ -231,8 +231,8 @@ enum Comando {
     None,
 }
 
-impl From<&std::string::String> for Comando {
-    fn from(item: &std::string::String) -> Self {
+impl From<&str> for Comando {
+    fn from(item: &str) -> Self {
         let matches = RE.matches(item);
 
         for (index, comando) in [
@@ -264,10 +264,10 @@ fn roman(mut n: i8) -> String {
     if n == 0 {
         roman.push_str("N");
     } else {
-        for (letra, valor) in &[("X", 10), ("V", 5), ("I", 1)] {
+        for (letra, valor) in &[('X', 10), ('V', 5), ('I', 1)] {
             while n >= *valor {
                 n -= valor;
-                roman.push_str(letra);
+                roman.push(*letra);
             }
         }
     }
