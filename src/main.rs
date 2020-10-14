@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     env,
     fmt::Write,
     thread,
@@ -8,9 +8,7 @@ use std::{
 
 use async_compat::Compat;
 use deunicode::deunicode;
-use once_cell::sync::Lazy;
 use postgres::{Client, NoTls};
-use regex::RegexSet;
 use smallvec::SmallVec;
 use smartstring::alias::String;
 use smol::prelude::*;
@@ -48,11 +46,12 @@ fn main() {
             );
         });
 
+    let comandos = inicia_mapa();
+
     let mut texto = String::new();
     let mut buscados = SmallVec::<[std::string::String; 1]>::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
-    Lazy::force(&RE);
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
@@ -67,9 +66,13 @@ fn main() {
                         if let MessageKind::Text { ref data, .. } = message.kind {
                             let now = Instant::now();
 
-                            match Comando::from(data.as_str()) {
+                            let mut iterador = data.split_whitespace();
+                            match comandos
+                                .get(iterador.next().unwrap_or_default())
+                                .unwrap_or_default()
+                            {
                                 Comando::Clave => {
-                                    for palabra in data.split_whitespace().skip(1) {
+                                    for palabra in iterador {
                                         if let Some((clave, persona)) = datos
                                             .get_key_value(palabra.to_ascii_uppercase().as_str())
                                         {
@@ -91,7 +94,7 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    data.split_whitespace().skip(1).for_each(|palabra| {
+                                    iterador.for_each(|palabra| {
                                         if palabra.len() > 2 {
                                             buscados.push(deunicode(palabra).to_ascii_lowercase());
                                         }
@@ -113,7 +116,7 @@ fn main() {
                                 }
 
                                 Comando::Apellido => {
-                                    data.split_whitespace().skip(1).for_each(|palabra| {
+                                    iterador.for_each(|palabra| {
                                         if palabra.len() > 2 {
                                             buscados.push(deunicode(palabra).to_ascii_lowercase());
                                         }
@@ -135,7 +138,7 @@ fn main() {
                                 }
 
                                 Comando::Generacion => {
-                                    data.split_whitespace().skip(1).for_each(|palabra| {
+                                    iterador.for_each(|palabra| {
 
                                     if let Ok(numero) = palabra.parse::<i8>() {
                                                 if numero > 15 && numero < 34 {
@@ -231,38 +234,38 @@ enum Comando {
     None,
 }
 
-impl From<&str> for Comando {
-    fn from(item: &str) -> Self {
-        let matches = RE.matches(item);
-
-        for (index, comando) in [
-            Self::Clave,
-            Self::Nombre,
-            Self::Apellido,
-            Self::Generacion,
-            Self::Ayuda,
-            Self::Start,
-        ]
-        .iter()
-        .enumerate()
-        {
-            if matches.matched(index) {
-                return *comando;
-            }
-        }
-
-        Self::None
+impl Default for &Comando {
+    fn default() -> Self {
+        &Comando::None
     }
 }
 
-static RE: Lazy<RegexSet> =
-    Lazy::new(|| RegexSet::new(&["/[cC]", "/[nN]", "/[aA]", "/[gG]", "/[hH]", "/[sS]"]).unwrap());
+fn inicia_mapa() -> HashMap<&'static str, Comando> {
+    let mut map = HashMap::new();
+    for (k, v) in &[
+        ("/c", Comando::Clave),
+        ("/n", Comando::Nombre),
+        ("/a", Comando::Apellido),
+        ("/g", Comando::Generacion),
+        ("/h", Comando::Ayuda),
+        ("/s", Comando::Start),
+        ("/clave", Comando::Clave),
+        ("/nombre", Comando::Nombre),
+        ("/ayuda", Comando::Apellido),
+        ("/gen", Comando::Generacion),
+        ("/help", Comando::Ayuda),
+        ("/start", Comando::Start),
+    ] {
+        map.insert(*k, *v);
+    }
+    map
+}
 
 fn roman(mut n: i8) -> String {
     let mut roman = String::new();
 
     if n == 0 {
-        roman.push_str("N");
+        roman.push('N');
     } else {
         for (letra, valor) in &[('X', 10), ('V', 5), ('I', 1)] {
             while n >= *valor {
