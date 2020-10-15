@@ -13,7 +13,7 @@ use postgres::{Client, NoTls};
 use smallvec::SmallVec;
 use smartstring::alias::String;
 use smol::prelude::*;
-use telegram_bot::{types::Message, Api, CanSendMessage, MessageKind, UpdateKind};
+use telegram_bot::{Api, CanSendMessage, MessageKind, UpdateKind};
 
 #[macro_use]
 extern crate log;
@@ -50,7 +50,7 @@ fn main() {
     let comandos = inicia_mapa();
 
     let mut texto = String::new();
-    let mut buscados = SmallVec::<[std::string::String; 1]>::new();
+    let mut buscados = SmallVec::<[String; 1]>::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
 
@@ -63,25 +63,21 @@ fn main() {
         while let Some(update) = stream.next().await {
             match update {
                 Ok(update) => {
-                    if let UpdateKind::Message(message) = update.kind {
-                        if let MessageKind::Text { ref data, .. } = message.kind {
+                    if let UpdateKind::Message(mut message) = update.kind {
+                        if let MessageKind::Text { ref mut data, .. } = message.kind {
                             let now = Instant::now();
 
-                            let mut iterador = data.split_whitespace();
+                            let mut data = deunicode(data);
+                            data.make_ascii_uppercase();
+                            let mut palabras = data.split_whitespace();
+
                             match comandos
-                                .get(
-                                    iterador
-                                        .next()
-                                        .unwrap_or_default()
-                                        .to_ascii_lowercase()
-                                        .as_str(),
-                                )
+                                .get(palabras.next().unwrap_or_default())
                                 .unwrap_or(&Comando::None)
                             {
                                 Comando::Clave => {
-                                    for palabra in iterador {
-                                        if let Some((clave, persona)) = datos
-                                            .get_key_value(palabra.to_ascii_uppercase().as_str())
+                                    for palabra in palabras {
+                                        if let Some((clave, persona)) = datos.get_key_value(palabra)
                                         {
                                             writeln!(
                                                 texto,
@@ -101,19 +97,19 @@ fn main() {
                                 }
 
                                 Comando::Nombre => {
-                                    iterador.for_each(|palabra| {
+                                    palabras.for_each(|palabra| {
                                         if palabra.len() > 2 {
-                                            buscados.push(deunicode(palabra).to_ascii_lowercase());
+                                            buscados.push(String::from(palabra));
                                         }
                                     });
 
                                     for (clave, persona) in &datos {
-                                        let nombre =
-                                            deunicode(&persona.nombre).to_ascii_lowercase();
+                                        let mut nombre = deunicode(&persona.nombre);
+                                        nombre.make_ascii_uppercase();
 
-                                        encontrado = buscados
-                                            .iter()
-                                            .any(|nombre_buscado| nombre.contains(nombre_buscado));
+                                        encontrado = buscados.iter().any(|nombre_buscado| {
+                                            nombre.contains(nombre_buscado.as_str())
+                                        });
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.apellidos)
@@ -123,18 +119,18 @@ fn main() {
                                 }
 
                                 Comando::Apellido => {
-                                    iterador.for_each(|palabra| {
+                                    palabras.for_each(|palabra| {
                                         if palabra.len() > 2 {
-                                            buscados.push(deunicode(palabra).to_ascii_lowercase());
+                                            buscados.push(String::from(palabra));
                                         }
                                     });
 
                                     for (clave, persona) in &datos {
-                                        let apellidos =
-                                            deunicode(&persona.apellidos).to_ascii_lowercase();
+                                        let mut apellidos = deunicode(&persona.apellidos);
+                                        apellidos.make_ascii_uppercase();
 
                                         encontrado = buscados.iter().any(|apellido_buscado| {
-                                            apellidos.contains(apellido_buscado)
+                                            apellidos.contains(apellido_buscado.as_str())
                                         });
 
                                         if encontrado {
@@ -145,7 +141,7 @@ fn main() {
                                 }
 
                                 Comando::Generacion => {
-                                    iterador.for_each(|palabra| {
+                                    palabras.for_each(|palabra| {
 
                                     if let Ok(numero) = palabra.parse::<i8>() {
                                                 if numero > 15 && numero < 34 {
@@ -191,7 +187,11 @@ fn main() {
                                 }
                             };
 
-                            responde(&texto, &message, &api);
+                            if texto.is_empty() {
+                                api.spawn(message.chat.text(NO_ENCONTRE));
+                            } else {
+                                api.spawn(message.chat.text(texto.as_str()));
+                            }
 
                             info!(
                                 "{}: {:#?} {:#?}",
@@ -216,14 +216,6 @@ fn main() {
     }));
 }
 
-fn responde(texto: &str, message: &Message, api: &Api) {
-    if texto.is_empty() {
-        api.spawn(message.chat.text(NO_ENCONTRE));
-    } else {
-        api.spawn(message.chat.text(texto));
-    }
-}
-
 struct Persona {
     nombre: String,
     apellidos: String,
@@ -244,18 +236,18 @@ enum Comando {
 fn inicia_mapa() -> HashMap<&'static str, Comando> {
     let mut map = HashMap::new();
     for (k, v) in &[
-        ("/c", Comando::Clave),
-        ("/n", Comando::Nombre),
-        ("/a", Comando::Apellido),
-        ("/g", Comando::Generacion),
-        ("/h", Comando::Ayuda),
-        ("/s", Comando::Start),
-        ("/clave", Comando::Clave),
-        ("/nombre", Comando::Nombre),
-        ("/ayuda", Comando::Apellido),
-        ("/gen", Comando::Generacion),
-        ("/help", Comando::Ayuda),
-        ("/start", Comando::Start),
+        ("/C", Comando::Clave),
+        ("/N", Comando::Nombre),
+        ("/A", Comando::Apellido),
+        ("/G", Comando::Generacion),
+        ("/H", Comando::Ayuda),
+        ("/S", Comando::Start),
+        ("/CLAVE", Comando::Clave),
+        ("/NOMBRE", Comando::Nombre),
+        ("/AYUDA", Comando::Apellido),
+        ("/GEN", Comando::Generacion),
+        ("/HELP", Comando::Ayuda),
+        ("/START", Comando::Start),
     ] {
         map.insert(*k, *v);
     }
