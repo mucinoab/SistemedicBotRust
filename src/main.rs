@@ -50,7 +50,6 @@ fn main() {
     let comandos = inicia_mapa();
 
     let mut texto = String::new();
-    let mut buscados = SmallVec::<[String; 1]>::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
 
@@ -69,6 +68,7 @@ fn main() {
 
                             let mut data = deunicode(data);
                             data.make_ascii_uppercase();
+                            let mut buscados = SmallVec::<[&str; 1]>::new();
                             let mut palabras = data.split_whitespace();
 
                             match comandos
@@ -99,7 +99,7 @@ fn main() {
                                 Comando::Nombre => {
                                     palabras.for_each(|palabra| {
                                         if palabra.len() > 2 {
-                                            buscados.push(String::from(palabra));
+                                            buscados.push(palabra);
                                         }
                                     });
 
@@ -107,9 +107,9 @@ fn main() {
                                         let mut nombre = deunicode(&persona.nombre);
                                         nombre.make_ascii_uppercase();
 
-                                        encontrado = buscados.iter().any(|nombre_buscado| {
-                                            nombre.contains(nombre_buscado.as_str())
-                                        });
+                                        encontrado = buscados
+                                            .iter()
+                                            .any(|nombre_buscado| nombre.contains(nombre_buscado));
 
                                         if encontrado {
                                             writeln!(texto, "{}  {}", clave, persona.apellidos)
@@ -121,7 +121,7 @@ fn main() {
                                 Comando::Apellido => {
                                     palabras.for_each(|palabra| {
                                         if palabra.len() > 2 {
-                                            buscados.push(String::from(palabra));
+                                            buscados.push(palabra);
                                         }
                                     });
 
@@ -130,7 +130,7 @@ fn main() {
                                         apellidos.make_ascii_uppercase();
 
                                         encontrado = buscados.iter().any(|apellido_buscado| {
-                                            apellidos.contains(apellido_buscado.as_str())
+                                            apellidos.contains(apellido_buscado)
                                         });
 
                                         if encontrado {
@@ -202,7 +202,6 @@ fn main() {
 
                             texto.clear();
                             generaciones.clear();
-                            buscados.clear();
                         }
                     }
                 }
