@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     env,
     fmt::Write,
     thread,
@@ -8,6 +8,7 @@ use std::{
 
 use async_compat::Compat;
 use deunicode::deunicode;
+use indexmap::IndexMap;
 use postgres::{Client, NoTls};
 use smallvec::SmallVec;
 use smartstring::alias::String;
@@ -27,10 +28,10 @@ fn main() {
     )
     .expect("PostgreSQL no encontrada o mal configurada.");
 
-    let mut datos: BTreeMap<String, Persona> = BTreeMap::new();
+    let mut datos = IndexMap::new();
     client
         .query(
-            "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos;",
+            "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos ORDER BY clave;",
             &[],
         )
         .expect("Extraer datos de BDD")
@@ -68,8 +69,14 @@ fn main() {
 
                             let mut iterador = data.split_whitespace();
                             match comandos
-                                .get(iterador.next().unwrap_or_default())
-                                .unwrap_or_default()
+                                .get(
+                                    iterador
+                                        .next()
+                                        .unwrap_or_default()
+                                        .to_ascii_lowercase()
+                                        .as_str(),
+                                )
+                                .unwrap_or(&Comando::None)
                             {
                                 Comando::Clave => {
                                     for palabra in iterador {
@@ -234,12 +241,6 @@ enum Comando {
     None,
 }
 
-impl Default for &Comando {
-    fn default() -> Self {
-        &Comando::None
-    }
-}
-
 fn inicia_mapa() -> HashMap<&'static str, Comando> {
     let mut map = HashMap::new();
     for (k, v) in &[
@@ -279,7 +280,7 @@ fn roman(mut n: i8) -> String {
 
 static START: &str = r#"Para buscar...
 - Clave usa /clave más las claves. 
-- Generación entera /generacion más la generación.
+- Generación entera /gen más la generación.
 - Nombre usa /nombre más los nombres.
 - Apellido usa /apellido más los apellidos.
 
@@ -288,7 +289,7 @@ Búsquedas incluyen azules e internos.
 Ejemplo
 /clave A101 A027 A010* cKGr 
 /nombre Luis Karol
-/generacion 32
+/gen 32
 /apellido Soriano
 
 Para ayuda usa /help
@@ -298,7 +299,7 @@ static AYUDA: &str = r#"Para buscar por...
 - Clave usa /clave ó /c más las claves.
 - Nombre usa /nombre ó /n más los nombres.
 - Apellido usa /apellido ó /a más los apellidos.
-- Generaciones enteras usa /generacion ó /g más las generaciones. 
+- Generaciones enteras usa /gen ó /g más las generaciones. 
 Búsquedas incluyen azules e internos. 
 
 Ejemplo
