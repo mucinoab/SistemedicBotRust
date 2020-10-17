@@ -56,11 +56,12 @@ fn main() {
     let mut encontrado = false;
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
+    let mut stream = api.stream();
 
     info!("Datos procesados, listo para recibir querys.");
 
     smol::block_on(Compat::new(async {
-        while let Some(update) = api.stream().next().await {
+        while let Some(update) = stream.next().await {
             match update {
                 Ok(update) => {
                     if let UpdateKind::Message(mut message) = update.kind {
