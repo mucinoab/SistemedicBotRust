@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     env,
     fmt::Write,
     thread,
@@ -8,6 +7,7 @@ use std::{
 
 use async_compat::Compat;
 use deunicode::deunicode;
+use hashbrown::HashMap;
 use indexmap::IndexMap;
 use postgres::{Client, NoTls};
 use smallvec::SmallVec;
@@ -28,7 +28,7 @@ fn main() {
     )
     .expect("PostgreSQL no encontrada o mal configurada.");
 
-    let mut datos = IndexMap::new();
+    let mut datos = IndexMap::with_capacity(348);
     client
         .query(
             "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos ORDER BY clave;",
@@ -37,8 +37,10 @@ fn main() {
         .expect("Extraer datos de BDD")
         .iter()
         .for_each(|row| {
+            let mut clave = String::from(row.get::<usize, &str>(0).trim());
+            clave.make_ascii_uppercase();
             datos.insert(
-                String::from(row.get::<usize, &str>(0).to_ascii_uppercase().trim()),
+                clave,
                 Persona {
                     generacion: row.get::<usize, i32>(1) as i8,
                     nombre: String::from(row.get::<usize, &str>(2).trim()),
@@ -54,12 +56,11 @@ fn main() {
     let mut encontrado = false;
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
-    let mut stream = api.stream();
 
     info!("Datos procesados, listo para recibir querys.");
 
     smol::block_on(Compat::new(async {
-        while let Some(update) = stream.next().await {
+        while let Some(update) = api.stream().next().await {
             match update {
                 Ok(update) => {
                     if let UpdateKind::Message(mut message) = update.kind {
@@ -73,7 +74,7 @@ fn main() {
 
                             match comandos
                                 .get(palabras.next().unwrap_or_default())
-                                .unwrap_or(&Comando::None)
+                                .unwrap_or(&&Comando::None)
                             {
                                 Comando::Clave => {
                                     for palabra in palabras {
@@ -221,7 +222,6 @@ struct Persona {
     generacion: i8,
 }
 
-#[derive(Clone, Copy)]
 enum Comando {
     Clave,
     Nombre,
@@ -232,7 +232,7 @@ enum Comando {
     None,
 }
 
-fn inicia_mapa() -> HashMap<&'static str, Comando> {
+fn inicia_mapa() -> HashMap<&'static str, &'static Comando> {
     let mut map = HashMap::new();
     for (k, v) in &[
         ("/C", Comando::Clave),
@@ -248,7 +248,7 @@ fn inicia_mapa() -> HashMap<&'static str, Comando> {
         ("/HELP", Comando::Ayuda),
         ("/START", Comando::Start),
     ] {
-        map.insert(*k, *v);
+        map.insert(*k, v);
     }
     map
 }

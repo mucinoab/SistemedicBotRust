@@ -15,6 +15,7 @@ postgres = "0.17.5"
 smartstring = "0.2.5"
 smallvec = { version = "1.4.2", features = ["union", "specialization", "const_generics"] }
 indexmap = "1.6.0"
+hashbrown = "0.9.1"
 
 [profile.release]
 lto = "fat"
