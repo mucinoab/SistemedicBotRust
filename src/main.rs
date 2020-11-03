@@ -31,7 +31,12 @@ fn main() {
     let mut datos = IndexMap::with_capacity(348);
     client
         .query(
-            "SELECT * FROM bot_claves UNION SELECT * FROM bot_internos ORDER BY clave;",
+            "SELECT * 
+            FROM bot_claves 
+            UNION 
+            SELECT * 
+            FROM bot_internos 
+            ORDER BY clave;",
             &[],
         )
         .expect("Extraer datos de BDD")
