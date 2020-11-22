@@ -29,6 +29,7 @@ fn main() {
     .expect("PostgreSQL no encontrada o mal configurada.");
 
     let mut datos = IndexMap::with_capacity(348);
+
     client
         .query(
             "SELECT * 
@@ -55,7 +56,6 @@ fn main() {
         });
 
     let comandos = inicia_mapa();
-
     let mut texto = String::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
@@ -239,7 +239,7 @@ enum Comando {
 }
 
 fn inicia_mapa() -> HashMap<&'static str, &'static Comando> {
-    let mut map = HashMap::new();
+    let mut map = HashMap::with_capacity(28);
     for (k, v) in &[
         ("/C", Comando::Clave),
         ("/N", Comando::Nombre),
@@ -256,6 +256,7 @@ fn inicia_mapa() -> HashMap<&'static str, &'static Comando> {
     ] {
         map.insert(*k, v);
     }
+    map.shrink_to_fit();
     map
 }
 
