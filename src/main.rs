@@ -1,6 +1,9 @@
+#![feature(once_cell)]
+
 use std::{
     env,
     fmt::Write,
+    lazy::SyncLazy,
     thread,
     time::{Duration, Instant},
 };
@@ -55,7 +58,6 @@ fn main() {
             );
         });
 
-    let comandos = inicia_mapa();
     let mut texto = String::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
     let mut encontrado = false;
@@ -78,9 +80,9 @@ fn main() {
                             let mut buscados = SmallVec::<[&str; 1]>::new();
                             let mut palabras = data.split_whitespace();
 
-                            match comandos
+                            match COMANDOS
                                 .get(palabras.next().unwrap_or_default())
-                                .unwrap_or(&&Comando::None)
+                                .unwrap_or(&Comando::None)
                             {
                                 Comando::Clave => {
                                     for palabra in palabras {
@@ -228,6 +230,7 @@ struct Persona {
     generacion: i8,
 }
 
+#[derive(Clone, Copy)]
 enum Comando {
     Clave,
     Nombre,
@@ -238,9 +241,8 @@ enum Comando {
     None,
 }
 
-fn inicia_mapa() -> HashMap<&'static str, &'static Comando> {
-    let mut map = HashMap::with_capacity(28);
-    for (k, v) in &[
+static COMANDOS: SyncLazy<HashMap<&str, Comando>> = SyncLazy::new(|| {
+    [
         ("/C", Comando::Clave),
         ("/N", Comando::Nombre),
         ("/A", Comando::Apellido),
@@ -253,12 +255,11 @@ fn inicia_mapa() -> HashMap<&'static str, &'static Comando> {
         ("/GEN", Comando::Generacion),
         ("/HELP", Comando::Ayuda),
         ("/START", Comando::Start),
-    ] {
-        map.insert(*k, v);
-    }
-    map.shrink_to_fit();
-    map
-}
+    ]
+    .iter()
+    .map(|(k, v)| (*k, *v))
+    .collect()
+});
 
 fn roman(mut n: i8) -> String {
     let mut roman = String::new();
