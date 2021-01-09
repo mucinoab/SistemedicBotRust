@@ -8,41 +8,50 @@ use std::{
     time::{Duration, Instant},
 };
 
-use async_compat::Compat;
+//TODO
+//Todos los internos?
+
 use deunicode::deunicode;
+use futures::StreamExt;
 use hashbrown::HashMap;
 use indexmap::IndexMap;
-use postgres::{Client, NoTls};
 use smallvec::SmallVec;
 use smartstring::alias::String;
-use smol::prelude::*;
 use telegram_bot::{Api, CanSendMessage, MessageKind, UpdateKind};
+use tokio_postgres::NoTls;
 
 #[macro_use]
 extern crate log;
 
-fn main() {
-    log4rs::init_file("log_config.yml", Default::default()).expect("No se pudo iniciar Log");
+#[tokio::main]
+async fn main() {
+    log4rs::init_file("log_config.yml", Default::default()).expect("No se pudo iniciar log");
     info!("Iniciando...");
 
-    let mut client = Client::connect(
-        &env::var("DATABASE").expect("Variable de base de datos no encontrada."),
+    let (client, connection) = tokio_postgres::connect(
+        &env::var("DATABASE").expect("Variable de base de datos no encontrada"),
         NoTls,
     )
-    .expect("PostgreSQL no encontrada o mal configurada.");
+    .await
+    .expect("PostgreSQL no encontrada o mal configurada");
 
-    let mut datos = IndexMap::with_capacity(348);
+    tokio::spawn(async move {
+        connection.await.expect("Error al intentar conectar");
+    });
+
+    let mut datos: IndexMap<String, Persona> = IndexMap::with_capacity(348);
 
     client
         .query(
-            "SELECT * 
-            FROM bot_claves 
-            UNION 
-            SELECT * 
-            FROM bot_internos 
-            ORDER BY clave;",
+            "SELECT *
+                 FROM bot_claves
+                 UNION
+                 SELECT *
+                 FROM bot_internos
+                 ORDER BY clave;",
             &[],
         )
+        .await
         .expect("Extraer datos de BDD")
         .iter()
         .for_each(|row| {
@@ -60,97 +69,94 @@ fn main() {
 
     let mut texto = String::new();
     let mut generaciones = SmallVec::<[i8; 1]>::new();
-    let mut encontrado = false;
+    let mut encontrado;
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
     let mut stream = api.stream();
 
     info!("Datos procesados, listo para recibir querys.");
 
-    smol::block_on(Compat::new(async {
-        while let Some(update) = stream.next().await {
-            match update {
-                Ok(update) => {
-                    if let UpdateKind::Message(mut message) = update.kind {
-                        if let MessageKind::Text { ref mut data, .. } = message.kind {
-                            let now = Instant::now();
+    while let Some(update) = stream.next().await {
+        match update {
+            Ok(update) => {
+                if let UpdateKind::Message(mut message) = update.kind {
+                    if let MessageKind::Text { ref mut data, .. } = message.kind {
+                        let now = Instant::now();
 
-                            let mut data = deunicode(data);
-                            data.make_ascii_uppercase();
-                            let mut buscados = SmallVec::<[&str; 1]>::new();
-                            let mut palabras = data.split_whitespace();
+                        let mut data = deunicode(data);
+                        data.make_ascii_uppercase();
+                        let mut buscados = SmallVec::<[&str; 1]>::new();
+                        let mut palabras = data.split_whitespace();
 
-                            match COMANDOS
-                                .get(palabras.next().unwrap_or_default())
-                                .unwrap_or(&Comando::None)
-                            {
-                                Comando::Clave => {
-                                    for palabra in palabras {
-                                        if let Some((clave, persona)) = datos.get_key_value(palabra)
-                                        {
-                                            writeln!(
-                                                texto,
-                                                "{}  {} {}, gen {}",
-                                                clave,
-                                                persona.nombre,
-                                                persona
-                                                    .apellidos
-                                                    .split_whitespace()
-                                                    .next()
-                                                    .unwrap_or_default(),
-                                                roman(persona.generacion),
-                                            )
+                        match COMANDOS
+                            .get(palabras.next().unwrap_or_default())
+                            .unwrap_or(&Comando::None)
+                        {
+                            Comando::Clave => {
+                                for palabra in palabras {
+                                    if let Some((clave, persona)) = datos.get_key_value(palabra) {
+                                        writeln!(
+                                            texto,
+                                            "{}  {} {}, gen {}",
+                                            clave,
+                                            persona.nombre,
+                                            persona
+                                                .apellidos
+                                                .split_whitespace()
+                                                .next()
+                                                .unwrap_or_default(),
+                                            roman(persona.generacion),
+                                        )
+                                        .unwrap();
+                                    }
+                                }
+                            }
+
+                            Comando::Nombre => {
+                                palabras.for_each(|palabra| {
+                                    if palabra.len() > 2 {
+                                        buscados.push(palabra);
+                                    }
+                                });
+
+                                for (clave, persona) in &datos {
+                                    let mut nombre = deunicode(&persona.nombre);
+                                    nombre.make_ascii_uppercase();
+
+                                    encontrado = buscados
+                                        .iter()
+                                        .any(|nombre_buscado| nombre.contains(nombre_buscado));
+
+                                    if encontrado {
+                                        writeln!(texto, "{}  {}", clave, persona.apellidos)
                                             .unwrap();
-                                        }
                                     }
                                 }
+                            }
 
-                                Comando::Nombre => {
-                                    palabras.for_each(|palabra| {
-                                        if palabra.len() > 2 {
-                                            buscados.push(palabra);
-                                        }
+                            Comando::Apellido => {
+                                palabras.for_each(|palabra| {
+                                    if palabra.len() > 2 {
+                                        buscados.push(palabra);
+                                    }
+                                });
+
+                                for (clave, persona) in &datos {
+                                    let mut apellidos = deunicode(&persona.apellidos);
+                                    apellidos.make_ascii_uppercase();
+
+                                    encontrado = buscados.iter().any(|apellido_buscado| {
+                                        apellidos.contains(apellido_buscado)
                                     });
 
-                                    for (clave, persona) in &datos {
-                                        let mut nombre = deunicode(&persona.nombre);
-                                        nombre.make_ascii_uppercase();
-
-                                        encontrado = buscados
-                                            .iter()
-                                            .any(|nombre_buscado| nombre.contains(nombre_buscado));
-
-                                        if encontrado {
-                                            writeln!(texto, "{}  {}", clave, persona.apellidos)
-                                                .unwrap();
-                                        }
+                                    if encontrado {
+                                        writeln!(texto, "{}  {}", clave, persona.nombre).unwrap();
                                     }
                                 }
+                            }
 
-                                Comando::Apellido => {
-                                    palabras.for_each(|palabra| {
-                                        if palabra.len() > 2 {
-                                            buscados.push(palabra);
-                                        }
-                                    });
-
-                                    for (clave, persona) in &datos {
-                                        let mut apellidos = deunicode(&persona.apellidos);
-                                        apellidos.make_ascii_uppercase();
-
-                                        encontrado = buscados.iter().any(|apellido_buscado| {
-                                            apellidos.contains(apellido_buscado)
-                                        });
-
-                                        if encontrado {
-                                            writeln!(texto, "{}  {}", clave, persona.nombre)
-                                                .unwrap();
-                                        }
-                                    }
-                                }
-
-                                Comando::Generacion => {
-                                    palabras.for_each(|palabra| {
+                            Comando::Generacion => {
+                                palabras.for_each(|palabra| {
 
                                     if let Ok(numero) = palabra.parse::<i8>() {
                                                 if numero > 15 && numero < 34 {
@@ -165,63 +171,62 @@ fn main() {
                                         }
                                     });
 
-                                    for (clave, datos) in &datos {
-                                        if generaciones.iter().any(|n| *n == datos.generacion) {
-                                            writeln!(
-                                                texto,
-                                                "{}  {} {}",
-                                                clave,
-                                                datos.nombre,
-                                                datos
-                                                    .apellidos
-                                                    .split_whitespace()
-                                                    .next()
-                                                    .unwrap_or_default()
-                                            )
-                                            .unwrap_or_default();
-                                        }
+                                for (clave, datos) in &datos {
+                                    if generaciones.iter().any(|n| *n == datos.generacion) {
+                                        writeln!(
+                                            texto,
+                                            "{}  {} {}",
+                                            clave,
+                                            datos.nombre,
+                                            datos
+                                                .apellidos
+                                                .split_whitespace()
+                                                .next()
+                                                .unwrap_or_default()
+                                        )
+                                        .unwrap_or_default();
                                     }
                                 }
-
-                                Comando::Ayuda => {
-                                    texto.push_str(AYUDA);
-                                }
-
-                                Comando::Start => {
-                                    texto.push_str(START);
-                                }
-
-                                Comando::None => {
-                                    texto.push_str(NO_ENTIENDO);
-                                }
-                            };
-
-                            if texto.is_empty() {
-                                api.spawn(message.chat.text(NO_ENCONTRE));
-                            } else {
-                                api.spawn(message.chat.text(texto.as_str()));
                             }
 
-                            info!(
-                                "{}: {:#?} {:#?}",
-                                &message.from.first_name,
-                                &data,
-                                Instant::now().duration_since(now)
-                            );
+                            Comando::Ayuda => {
+                                texto.push_str(AYUDA);
+                            }
 
-                            texto.clear();
-                            generaciones.clear();
+                            Comando::Start => {
+                                texto.push_str(START);
+                            }
+
+                            Comando::None => {
+                                texto.push_str(NO_ENTIENDO);
+                            }
+                        };
+
+                        if texto.is_empty() {
+                            api.spawn(message.chat.text(NO_ENCONTRE));
+                        } else {
+                            api.spawn(message.chat.text(texto.as_str()));
                         }
+
+                        info!(
+                            "{}: {:#?} {:#?}",
+                            &message.from.first_name,
+                            &data,
+                            Instant::now().duration_since(now)
+                        );
+
+                        texto.clear();
+                        generaciones.clear();
                     }
                 }
+            }
 
-                Err(e) => {
-                    error!("{}", e);
-                    thread::sleep(Duration::from_secs(1));
-                }
+            Err(e) => {
+                error!("{}", e);
+                thread::sleep(Duration::from_secs(1));
             }
         }
-    }));
+    }
 }
 
 struct Persona {

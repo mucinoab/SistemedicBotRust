@@ -2,3 +2,4 @@
 notas
 /log
 /.cargo 
+Cargo.lock
