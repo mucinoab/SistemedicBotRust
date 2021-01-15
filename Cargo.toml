@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 telegram-bot = { git = "https://github.com/telegram-rs/telegram-bot.git" }
-tokio = { version = "1.0.1", features = ["full"] }
+tokio = { version = "1.0.2", features = ["full"] }
 futures = "0.3.10"
 log = "0.4.13"
 deunicode = "1.1.1"
