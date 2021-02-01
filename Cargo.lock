@@ -1485,7 +1485,7 @@ dependencies = [
  "smallvec",
  "smartstring",
  "telegram-bot",
- "tokio 1.1.0",
+ "tokio 1.1.1",
  "tokio-postgres",
 ]
 
@@ -1681,9 +1681,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8efab2086f17abcddb8f756117665c958feee6b2e39974c2f1600592ab3a4195"
+checksum = "6714d663090b6b0acb0fa85841c6d66233d150cdb2602c8f9b8abb03370beb3f"
 dependencies = [
  "autocfg 1.0.1",
  "bytes 1.0.0",
@@ -1729,7 +1729,7 @@ dependencies = [
  "postgres-protocol",
  "postgres-types",
  "socket2",
- "tokio 1.1.0",
+ "tokio 1.1.1",
  "tokio-util 0.6.0",
 ]
 
@@ -1742,7 +1742,7 @@ dependencies = [
  "async-stream",
  "futures-core",
  "pin-project-lite 0.2.4",
- "tokio 1.1.0",
+ "tokio 1.1.1",
 ]
 
 [[package]]
@@ -1780,7 +1780,7 @@ dependencies = [
  "futures-sink",
  "log 0.4.13",
  "pin-project-lite 0.2.4",
- "tokio 1.1.0",
+ "tokio 1.1.1",
  "tokio-stream",
 ]
 
