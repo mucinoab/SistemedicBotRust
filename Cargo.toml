@@ -15,7 +15,7 @@ tokio-postgres = "0.7.1"
 smartstring = "0.2.6"
 smallvec = { version = "1.6.1", features = ["union", "specialization", "const_generics"] }
 indexmap = "1.6.2"
-hashbrown = { version = "0.10.0", features = ["nightly"] }
+hashbrown = { version = "0.11.2", features = ["nightly"] }
 
 [profile.release]
 lto = "fat"
