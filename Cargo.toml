@@ -14,7 +14,7 @@ log4rs = "1.0.0"
 tokio-postgres = "0.7.0"
 smartstring = "0.2.6"
 smallvec = { version = "1.6.1", features = ["union", "specialization", "const_generics"] }
-indexmap = "1.6.1"
+indexmap = "1.6.2"
 hashbrown = { version = "0.10.0", features = ["nightly"] }
 
 [profile.release]
