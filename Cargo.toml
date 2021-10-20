@@ -13,7 +13,7 @@ deunicode = "1.3.0"
 log4rs = "1.0.0"
 tokio-postgres = "0.7.4"
 smartstring = "0.2.6"
-smallvec = { version = "1.6.1", features = ["union", "specialization", "const_generics"] }
+smallvec = { version = "1.7.0", features = ["union", "specialization", "const_generics"] }
 indexmap = "1.6.2"
 hashbrown = { version = "0.11.2", features = ["nightly"] }
 
