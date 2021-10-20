@@ -1,6 +1,7 @@
 #![feature(once_cell)]
 
 use std::{
+    collections::HashMap,
     env,
     fmt::Write,
     lazy::SyncLazy,
@@ -13,10 +14,7 @@ use std::{
 
 use deunicode::deunicode;
 use futures::StreamExt;
-use hashbrown::HashMap;
 use indexmap::IndexMap;
-use smallvec::SmallVec;
-use smartstring::alias::String;
 use telegram_bot::{Api, CanSendMessage, MessageKind, UpdateKind};
 use tokio_postgres::NoTls;
 
@@ -68,7 +66,7 @@ async fn main() {
         });
 
     let mut texto = String::new();
-    let mut generaciones = SmallVec::<[i8; 1]>::new();
+    let mut generaciones = Vec::new();
     let mut encontrado;
 
     let api = Api::new(&env::var("TOKEN").expect("Token no encontrado"));
@@ -85,7 +83,7 @@ async fn main() {
 
                         let mut data = deunicode(data);
                         data.make_ascii_uppercase();
-                        let mut buscados = SmallVec::<[&str; 1]>::new();
+                        let mut buscados = Vec::new();
                         let mut palabras = data.split_whitespace();
 
                         match COMANDOS
