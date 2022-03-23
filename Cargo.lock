@@ -554,14 +554,14 @@ version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
 dependencies = [
- "log 0.4.14",
+ "log 0.4.16",
 ]
 
 [[package]]
 name = "log"
-version = "0.4.14"
+version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51b9bbe6c47d51fc3e1a9b945965946b4c44142ab8792c50835a980d362c2710"
+checksum = "6389c490849ff5bc16be905ae24bc913a9c8892e19b2341dbc175e14c341c2b8"
 dependencies = [
  "cfg-if 1.0.0",
  "serde",
@@ -586,7 +586,7 @@ dependencies = [
  "fnv",
  "humantime",
  "libc",
- "log 0.4.14",
+ "log 0.4.16",
  "log-mdc",
  "parking_lot",
  "regex",
@@ -650,7 +650,7 @@ dependencies = [
  "iovec",
  "kernel32-sys",
  "libc",
- "log 0.4.14",
+ "log 0.4.16",
  "miow 0.2.2",
  "net2",
  "slab",
@@ -664,7 +664,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8067b404fe97c70829f082dec8bcf4f71225d7eaea1d8645349cb76fa06205cc"
 dependencies = [
  "libc",
- "log 0.4.14",
+ "log 0.4.16",
  "miow 0.3.7",
  "ntapi",
  "winapi 0.3.9",
@@ -697,7 +697,7 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "136eed74cadb9edd2651ffba732b19a450316b680e4f48d6c79e905799e19d01"
 dependencies = [
- "log 0.4.14",
+ "log 0.4.16",
  "mime",
  "mime_guess",
  "rand 0.6.5",
@@ -712,7 +712,7 @@ checksum = "48ba9f7719b5a0f42f338907614285fb5fd70e53858141f69898a1fb7203b24d"
 dependencies = [
  "lazy_static",
  "libc",
- "log 0.4.14",
+ "log 0.4.16",
  "openssl",
  "openssl-probe",
  "openssl-sys",
@@ -1367,7 +1367,7 @@ dependencies = [
  "deunicode",
  "futures",
  "indexmap",
- "log 0.4.14",
+ "log 0.4.16",
  "log4rs",
  "telegram-bot",
  "tokio 1.12.0",
@@ -1590,7 +1590,7 @@ dependencies = [
  "bytes 1.1.0",
  "fallible-iterator",
  "futures",
- "log 0.4.14",
+ "log 0.4.16",
  "parking_lot",
  "percent-encoding",
  "phf 0.10.0",
@@ -1621,7 +1621,7 @@ dependencies = [
  "bytes 0.5.6",
  "futures-core",
  "futures-sink",
- "log 0.4.14",
+ "log 0.4.16",
  "pin-project-lite 0.1.12",
  "tokio 0.2.25",
 ]
@@ -1635,7 +1635,7 @@ dependencies = [
  "bytes 1.1.0",
  "futures-core",
  "futures-sink",
- "log 0.4.14",
+ "log 0.4.16",
  "pin-project-lite 0.2.7",
  "tokio 1.12.0",
 ]
@@ -1653,7 +1653,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "375a639232caf30edfc78e8d89b2d4c375515393e7af7e16f01cd96917fb2105"
 dependencies = [
  "cfg-if 1.0.0",
- "log 0.4.14",
+ "log 0.4.16",
  "pin-project-lite 0.2.7",
  "tracing-attributes",
  "tracing-core",
@@ -1779,7 +1779,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ce8a968cb1cd110d136ff8b819a556d6fb6d919363c61534f6860c7eb172ba0"
 dependencies = [
- "log 0.4.14",
+ "log 0.4.16",
  "try-lock",
 ]
 
